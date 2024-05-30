@@ -4,7 +4,8 @@
 #include <cfloat>
 #include <cmath>
 #include <cstdio>
-#include <stdio.h>
+#include <queue>
+#include <utility>
 
 namespace rl {
 #include "raylib/raylib.h"
@@ -65,20 +66,29 @@ class Player {};
 class Camera {
 public:
     float view_width;
+    rl::Vector2 position;
     rl::Vector2 target;
 
-    Camera(float view_width, rl::Vector2 target)
+    Camera(float view_width, rl::Vector2 position)
         : view_width(view_width)
-        , target(target) {}
+        , position(position)
+        , target(position) {}
+
+    void reset_position(rl::Vector2 position) {
+        this->position = position;
+        this->target = position;
+    }
 };
 
-class World {
+class Terrain {
 private:
     int size;
+    float resolution;
 
-    float heights_resolution;
-    float *heights_data;
+    float *heights;
     rl::Texture heights_texture;
+
+    float *dists_to_water;
 
     void init_heights() {
         this->heights_texture.id = 0;
@@ -91,37 +101,95 @@ private:
         float gain = 1.0;
         int octaves = 8;
 
-        int size = this->size * this->heights_resolution;
-        this->heights_data = (float *)malloc(size * size * sizeof(float));
+        int size = this->size * this->resolution;
+        this->heights = (float *)malloc(size * size * sizeof(float));
 
-        float max_h = -FLT_MAX;
-        float min_h = FLT_MAX;
-        for (int y = 0; y < size; y++) {
-            for (int x = 0; x < size; x++) {
-                float nx = (float)(x + offset_x) * (scale / (float)size);
-                float ny = (float)(y + offset_y) * (scale / (float)size);
-                float h = stb_perlin_fbm_noise3(nx, ny, 0.0, lacunarity, gain, octaves);
+        float max_height = -FLT_MAX;
+        float min_height = FLT_MAX;
+        for (int i = 0; i < size * size; ++i) {
+            int y = i / size;
+            int x = i % size;
 
-                max_h = std::max(max_h, h);
-                min_h = std::min(min_h, h);
-                this->heights_data[y * size + x] = h;
-            }
+            float nx = (float)(x + offset_x) * (scale / (float)size);
+            float ny = (float)(y + offset_y) * (scale / (float)size);
+            float height = stb_perlin_fbm_noise3(nx, ny, 0.0, lacunarity, gain, octaves);
+
+            max_height = std::max(max_height, height);
+            min_height = std::min(min_height, height);
+            this->heights[i] = height;
         }
 
         for (int i = 0; i < size * size; ++i) {
-            float *height = &this->heights_data[i];
-            *height = (*height - min_h) / (max_h - min_h);
+            float *height = &this->heights[i];
+            *height = (*height - min_height) / (max_height - min_height);
         }
+    }
+
+    void init_dists_to_water() {
+        int size = this->size * this->resolution;
+        this->dists_to_water = (float *)malloc(size * size * sizeof(float));
+        std::fill(this->dists_to_water, this->dists_to_water + size * size, -1.0);
+
+        std::queue<std::pair<int, float>> queue;
+        for (int i = 0; i < size * size; ++i) {
+            float height = this->heights[i];
+            if (this->is_water(height)) {
+                this->dists_to_water[i] = 0.0;
+                queue.push({i, 0.0});
+            }
+        }
+
+        std::pair<int, int> directions[8] = {
+            {-1, 0}, {-1, -1}, {0, -1}, {1, -1}, {1, 0}, {1, 1}, {0, 1}, {-1, 1}
+        };
+
+        while (!queue.empty()) {
+            auto [i0, d0] = queue.front();
+            int y0 = i0 / size;
+            int x0 = i0 % size;
+
+            queue.pop();
+
+            for (auto [dx, dy] : directions) {
+                int x1 = x0 + dx;
+                int y1 = y0 + dy;
+                int i1 = y1 * size + x1;
+
+                if (x1 >= 0 && x1 < size && y1 >= 0 && y1 < size) {
+                    if (this->dists_to_water[i1] >= 0.0) continue;
+
+                    float height = this->heights[i1];
+                    float d1 = 0.0;
+                    if (!this->is_water(height)) {
+                        float dd = dx == 0 || dy == 0 ? 1.0 : 1.4142;
+                        d1 = d0 + dd;
+                    }
+                    this->dists_to_water[i1] = d1;
+                    queue.push({i1, d1});
+                }
+            }
+        }
+    }
+
+    int world_to_data_idx(rl::Vector2 position) {
+        int size = this->size * this->resolution;
+        int x = position.x * this->resolution;
+        int y = position.y * this->resolution;
+        int idx = y * size + x;
+
+        return idx;
     }
 
 public:
     const float water_level;
 
-    World(int size, float heights_resolution, float water_level)
+    Terrain(int size, float resolution, float water_level)
         : size(size)
-        , heights_resolution(heights_resolution)
+        , resolution(resolution)
         , water_level(water_level) {
+
         this->init_heights();
+        this->init_dists_to_water();
     }
 
     rl::Vector2 get_center() {
@@ -135,10 +203,10 @@ public:
     }
 
     rl::Texture get_heights_texture() {
-        int size = this->size * this->heights_resolution;
+        int size = this->size * this->resolution;
         if (this->heights_texture.id == 0) {
             rl::Image image;
-            image.data = this->heights_data;
+            image.data = this->heights;
             image.width = size;
             image.height = size;
             image.mipmaps = 1;
@@ -151,17 +219,21 @@ public:
     }
 
     float get_height(rl::Vector2 position) {
-        int size = this->size * this->heights_resolution;
-        int x = position.x * this->heights_resolution;
-        int y = position.y * this->heights_resolution;
+        int idx = this->world_to_data_idx(position);
+        return this->heights[idx];
+    }
 
-        float height = this->heights_data[y * size + x];
-
-        return height;
+    float get_dist_to_water(rl::Vector2 position) {
+        int idx = this->world_to_data_idx(position);
+        return this->dists_to_water[idx];
     }
 
     bool is_water(rl::Vector2 position) {
         float height = this->get_height(position);
+        return this->is_water(height);
+    }
+
+    bool is_water(float height) {
         return height <= this->water_level;
     }
 };
@@ -175,7 +247,7 @@ private:
     int screen_height;
     float dt = 1.0 / 60.0;
 
-    World world;
+    Terrain terrain;
     Camera camera;
 
     entt::registry registry;
@@ -184,8 +256,8 @@ public:
     Game()
         : screen_width(1500)
         , screen_height(1000)
-        , world(500, 5.0, 0.6)
-        , camera(50.0, world.get_center()) {
+        , terrain(500, 5.0, 0.6)
+        , camera(50.0, terrain.get_center()) {
 
         SetConfigFlags(rl::FLAG_MSAA_4X_HINT);
         rl::InitWindow(screen_width, screen_height, "Sea Trader");
@@ -199,7 +271,7 @@ public:
         );
 
         {
-            Transform transform(this->world.get_center());
+            Transform transform(this->terrain.get_center());
             auto body = DynamicBody::create_ship();
             this->create_player_ship(transform, body);
         }
@@ -207,21 +279,6 @@ public:
 
     ~Game() {
         rl::CloseWindow();
-    }
-
-    entt::entity create_ship(Transform transform, DynamicBody dynamic_body) {
-        auto entity = this->registry.create();
-        this->registry.emplace<Transform>(entity, transform);
-        this->registry.emplace<DynamicBody>(entity, dynamic_body);
-
-        return entity;
-    }
-
-    entt::entity create_player_ship(Transform transform, DynamicBody dynamic_body) {
-        auto entity = this->create_ship(transform, dynamic_body);
-        this->registry.emplace<Player>(entity);
-
-        return entity;
     }
 
     void run() {
@@ -240,9 +297,25 @@ public:
     }
 
 private:
+    entt::entity create_ship(Transform transform, DynamicBody dynamic_body) {
+        auto entity = this->registry.create();
+        this->registry.emplace<Transform>(entity, transform);
+        this->registry.emplace<DynamicBody>(entity, dynamic_body);
+
+        return entity;
+    }
+
+    entt::entity create_player_ship(Transform transform, DynamicBody dynamic_body) {
+        auto entity = this->create_ship(transform, dynamic_body);
+        this->registry.emplace<Player>(entity);
+
+        return entity;
+    }
+
     void update_camera() {
         static float min_view_width = 10.0f;
         static float max_view_width = 500.0f;
+        static float zoom_speed = 8.0f;
 
         if (IsMouseButtonDown(rl::MOUSE_MIDDLE_BUTTON)) {
             rl::Vector2 delta = rl::GetMouseDelta();
@@ -253,15 +326,16 @@ private:
             prev = this->get_screen_to_world(prev);
             delta = Vector2Subtract(curr, prev);
 
-            this->camera.target = Vector2Add(this->camera.target, delta);
+            rl::Vector2 position = Vector2Add(this->camera.position, delta);
+            this->camera.reset_position(position);
         }
 
         float wheel_move = rl::GetMouseWheelMove();
         float zoom = 0.0;
         if (wheel_move > 0.0) {
-            zoom = -5.0;
+            zoom = -zoom_speed;
         } else if (wheel_move < 0.0) {
-            zoom = 5.0;
+            zoom = zoom_speed;
         }
         this->camera.view_width += zoom;
         this->camera.view_width = std::max(this->camera.view_width, min_view_width);
@@ -269,8 +343,8 @@ private:
     }
 
     void update_player_input() {
-        static float torque = 30.0;  // 5.0;
-        static float force = 4000.0;  // 1000.0;
+        static float torque = 30.0;
+        static float force = 4000.0;
 
         auto entity = registry.view<Player, Transform, DynamicBody>().front();
         auto &body = registry.get<DynamicBody>(entity);
@@ -318,7 +392,7 @@ private:
                 body.linear_velocity = {0.0, 0.0};
             }
 
-            if (this->world.is_water(position)) {
+            if (this->terrain.is_water(position)) {
                 transform.position = position;
             } else {
                 body.linear_velocity = {0.0, 0.0};
@@ -362,7 +436,7 @@ private:
 
         float aspect = (float)this->screen_width / this->screen_height;
 
-        SetShaderValue(shader, position_loc, &camera.target, rl::SHADER_UNIFORM_VEC2);
+        SetShaderValue(shader, position_loc, &camera.position, rl::SHADER_UNIFORM_VEC2);
         SetShaderValue(
             shader, view_width_loc, &camera.view_width, rl::SHADER_UNIFORM_FLOAT
         );
@@ -370,19 +444,19 @@ private:
     }
 
     void set_screen_camera(rl::Shader shader) {
-        rl::Vector2 target = {screen_width / 2.0f, screen_height / 2.0f};
-        Camera camera = Camera(this->screen_width, target);
+        rl::Vector2 position = {screen_width / 2.0f, screen_height / 2.0f};
+        Camera camera = Camera(this->screen_width, position);
         this->set_camera(camera, shader);
     }
 
     void draw_terrain() {
         rl::Shader shader = this->terrain_shader;
-        rl::Texture texture = this->world.get_heights_texture();
+        rl::Texture texture = this->terrain.get_heights_texture();
         this->set_camera(this->camera, shader);
 
         int water_level_loc = GetShaderLocation(shader, "water_level");
         SetShaderValue(
-            shader, water_level_loc, &this->world.water_level, rl::SHADER_UNIFORM_FLOAT
+            shader, water_level_loc, &this->terrain.water_level, rl::SHADER_UNIFORM_FLOAT
         );
 
         BeginShaderMode(shader);
@@ -392,7 +466,7 @@ private:
             .width = (float)texture.width,
             .height = (float)texture.height
         };
-        rl::Rectangle dst = this->world.get_rect();
+        rl::Rectangle dst = this->terrain.get_rect();
         DrawTexturePro(texture, src, dst, {0, 0}, 0, rl::WHITE);
 
         rl::EndShaderMode();
