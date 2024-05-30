@@ -4,6 +4,7 @@
 #include <cfloat>
 #include <cmath>
 #include <cstdio>
+#include <stdio.h>
 
 namespace rl {
 #include "raylib/raylib.h"
@@ -148,6 +149,21 @@ public:
         }
         return this->heights_texture;
     }
+
+    float get_height(rl::Vector2 position) {
+        int size = this->size * this->heights_resolution;
+        int x = position.x * this->heights_resolution;
+        int y = position.y * this->heights_resolution;
+
+        float height = this->heights_data[y * size + x];
+
+        return height;
+    }
+
+    bool is_water(rl::Vector2 position) {
+        float height = this->get_height(position);
+        return height <= this->water_level;
+    }
 };
 
 class Game {
@@ -168,7 +184,7 @@ public:
     Game()
         : screen_width(1500)
         , screen_height(1000)
-        , world(100, 5.0, 0.6)
+        , world(500, 5.0, 0.6)
         , camera(50.0, world.get_center()) {
 
         SetConfigFlags(rl::FLAG_MSAA_4X_HINT);
@@ -225,6 +241,9 @@ public:
 
 private:
     void update_camera() {
+        static float min_view_width = 10.0f;
+        static float max_view_width = 500.0f;
+
         if (IsMouseButtonDown(rl::MOUSE_MIDDLE_BUTTON)) {
             rl::Vector2 delta = rl::GetMouseDelta();
             rl::Vector2 curr = rl::GetMousePosition();
@@ -245,11 +264,14 @@ private:
             zoom = 5.0;
         }
         this->camera.view_width += zoom;
-        this->camera.view_width = std::max(this->camera.view_width, 10.0f);
-        this->camera.view_width = std::min(this->camera.view_width, 100.0f);
+        this->camera.view_width = std::max(this->camera.view_width, min_view_width);
+        this->camera.view_width = std::min(this->camera.view_width, max_view_width);
     }
 
     void update_player_input() {
+        static float torque = 30.0;  // 5.0;
+        static float force = 4000.0;  // 1000.0;
+
         auto entity = registry.view<Player, Transform, DynamicBody>().front();
         auto &body = registry.get<DynamicBody>(entity);
 
@@ -257,11 +279,11 @@ private:
         float rotation = transform.rotation;
         rl::Vector2 forward = {cosf(rotation), sinf(rotation)};
 
-        if (rl::IsKeyDown(rl::KEY_A)) body.apply_torque(-5.0);
-        if (rl::IsKeyDown(rl::KEY_D)) body.apply_torque(5.0);
+        if (rl::IsKeyDown(rl::KEY_A)) body.apply_torque(-torque);
+        if (rl::IsKeyDown(rl::KEY_D)) body.apply_torque(torque);
 
-        if (rl::IsKeyDown(rl::KEY_W)) body.apply_force(forward, 1000.0);
-        if (rl::IsKeyDown(rl::KEY_S)) body.apply_force(forward, -1000.0);
+        if (rl::IsKeyDown(rl::KEY_W)) body.apply_force(forward, force);
+        if (rl::IsKeyDown(rl::KEY_S)) body.apply_force(forward, -force);
     }
 
     void update_dynamic_bodies() {
@@ -269,6 +291,7 @@ private:
         for (auto entity : view) {
             auto [transform, body] = view.get(entity);
 
+            // update linear velocity
             rl::Vector2 damping_force = rl::Vector2Scale(
                 body.linear_velocity, -body.linear_damping
             );
@@ -281,7 +304,7 @@ private:
             );
             body.net_force = {0.0, 0.0};
 
-            // angular torque
+            // update angular velocity
             float damping_torque = body.angular_velocity * -body.angular_damping;
             float net_torque = body.net_torque + damping_torque;
             float angular_acceleration = net_torque / body.moment_of_inertia;
@@ -290,8 +313,14 @@ private:
 
             // apply linear velocity
             rl::Vector2 linear_step = rl::Vector2Scale(body.linear_velocity, dt);
-            transform.position = rl::Vector2Add(transform.position, linear_step);
+            rl::Vector2 position = rl::Vector2Add(transform.position, linear_step);
             if (rl::Vector2Length(body.linear_velocity) < EPSILON) {
+                body.linear_velocity = {0.0, 0.0};
+            }
+
+            if (this->world.is_water(position)) {
+                transform.position = position;
+            } else {
                 body.linear_velocity = {0.0, 0.0};
             }
 
@@ -379,10 +408,11 @@ private:
             auto [transform] = view.get(entity);
             float height = 0.5;
             float width = 1.0;
+
             rl::Vector2 origin = {0.5f * width, 0.5f * height};
             rl::Rectangle rect = {
-                .x = transform.position.x - origin.x,
-                .y = transform.position.y - origin.y,
+                .x = transform.position.x,
+                .y = transform.position.y,
                 .width = width,
                 .height = height
             };
