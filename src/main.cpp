@@ -62,6 +62,8 @@ public:
 };
 
 class Player {};
+class Ship {};
+class Port {};
 
 class Camera {
 public:
@@ -256,7 +258,7 @@ public:
     Game()
         : screen_width(1500)
         , screen_height(1000)
-        , terrain(500, 5.0, 0.6)
+        , terrain(200, 4.0, 0.6)
         , camera(50.0, terrain.get_center()) {
 
         SetConfigFlags(rl::FLAG_MSAA_4X_HINT);
@@ -270,10 +272,21 @@ public:
             "./resources/shaders/base.vert", "./resources/shaders/sprite.frag"
         );
 
+        rl::Vector2 terrain_center = this->terrain.get_center();
+
+        // create player
         {
-            Transform transform(this->terrain.get_center());
+            Transform transform(terrain_center);
             auto body = DynamicBody::create_ship();
             this->create_player_ship(transform, body);
+        }
+
+        // create ports
+        {
+            Transform transform(terrain_center);
+            transform.position.x += 5.0;
+            transform.position.y += 5.0;
+            this->create_port(transform);
         }
     }
 
@@ -301,6 +314,7 @@ private:
         auto entity = this->registry.create();
         this->registry.emplace<Transform>(entity, transform);
         this->registry.emplace<DynamicBody>(entity, dynamic_body);
+        this->registry.emplace<Ship>(entity);
 
         return entity;
     }
@@ -308,6 +322,14 @@ private:
     entt::entity create_player_ship(Transform transform, DynamicBody dynamic_body) {
         auto entity = this->create_ship(transform, dynamic_body);
         this->registry.emplace<Player>(entity);
+
+        return entity;
+    }
+
+    entt::entity create_port(Transform transform) {
+        auto entity = this->registry.create();
+        this->registry.emplace<Transform>(entity, transform);
+        this->registry.emplace<Port>(entity);
 
         return entity;
     }
@@ -473,15 +495,16 @@ private:
     }
 
     void draw_ships() {
+        static float height = 0.5;
+        static float width = 1.0;
+
         rl::Shader shader = this->sprite_shader;
         this->set_camera(this->camera, shader);
         BeginShaderMode(shader);
 
-        auto view = registry.view<Transform>();
+        auto view = registry.view<Transform, Ship>();
         for (auto entity : view) {
             auto [transform] = view.get(entity);
-            float height = 0.5;
-            float width = 1.0;
 
             rl::Vector2 origin = {0.5f * width, 0.5f * height};
             rl::Rectangle rect = {
@@ -496,10 +519,25 @@ private:
         rl::EndShaderMode();
     }
 
+    void draw_ports() {
+        static float radius = 0.8;
+
+        rl::Shader shader = this->sprite_shader;
+        this->set_camera(this->camera, shader);
+        BeginShaderMode(shader);
+
+        auto view = registry.view<Transform, Port>();
+        for (auto entity : view) {
+            auto [transform] = view.get(entity);
+            rl::DrawCircleV(transform.position, radius, rl::RED);
+        }
+    }
+
     void draw() {
         rl::BeginDrawing();
         ClearBackground(rl::BLACK);
         this->draw_terrain();
+        this->draw_ports();
         this->draw_ships();
         rl::EndDrawing();
     }
