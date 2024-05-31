@@ -4,6 +4,7 @@
 #include <cfloat>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <queue>
 #include <utility>
 
@@ -84,9 +85,6 @@ public:
 
 class Terrain {
 private:
-    int size;
-    float resolution;
-
     float *heights;
     rl::Texture heights_texture;
 
@@ -183,6 +181,8 @@ private:
     }
 
 public:
+    const int size;
+    const float resolution;
     const float water_level;
 
     Terrain(int size, float resolution, float water_level)
@@ -274,6 +274,7 @@ public:
 
         rl::Vector2 terrain_center = this->terrain.get_center();
 
+        // ---------------------------------------------------------------
         // create player
         {
             Transform transform(terrain_center);
@@ -281,12 +282,41 @@ public:
             this->create_player_ship(transform, body);
         }
 
+        // ---------------------------------------------------------------
         // create ports
         {
-            Transform transform(terrain_center);
-            transform.position.x += 5.0;
-            transform.position.y += 5.0;
-            this->create_port(transform);
+            float min_d = 2.0;
+            float max_d = 5.0;
+            static const int size = 40;
+
+            int n = 0;
+            rl::Vector2 candidates[size * size];
+
+            // iterate on quadrants
+            for (float y0 = 0.0; y0 < terrain.size; y0 += size) {
+                for (float x0 = 0.0; x0 < terrain.size; x0 += size) {
+                    n = 0;
+
+                    // find all candidate positions in the quadrant
+                    for (float y = y0; y < y0 + size; y += 1.0) {
+                        for (float x = x0; x < x0 + size; x += 1.0) {
+                            rl::Vector2 position = {x, y};
+                            float d = this->terrain.get_dist_to_water(position);
+                            if (d >= min_d && d <= max_d) {
+                                candidates[n++] = position;
+                            }
+                        }
+                    }
+
+                    // pick one candidate position from the quadrant
+                    if (n > 0) {
+                        int idx = std::rand() % n;
+                        rl::Vector2 position = candidates[idx];
+                        Transform transform(position);
+                        this->create_port(transform);
+                    }
+                }
+            }
         }
     }
 
