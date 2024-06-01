@@ -62,9 +62,15 @@ public:
     }
 };
 
+class Port {
+public:
+    const float radius;
+    Port(float radius)
+        : radius(radius) {}
+};
+
 class Player {};
 class Ship {};
-class Port {};
 
 class Camera {
 public:
@@ -313,7 +319,8 @@ public:
                         int idx = std::rand() % n;
                         rl::Vector2 position = candidates[idx];
                         Transform transform(position);
-                        this->create_port(transform);
+                        Port port(3.0);
+                        this->create_port(transform, port);
                     }
                 }
             }
@@ -356,10 +363,10 @@ private:
         return entity;
     }
 
-    entt::entity create_port(Transform transform) {
+    entt::entity create_port(Transform transform, Port port) {
         auto entity = this->registry.create();
         this->registry.emplace<Transform>(entity, transform);
-        this->registry.emplace<Port>(entity);
+        this->registry.emplace<Port>(entity, port);
 
         return entity;
     }
@@ -558,8 +565,17 @@ private:
 
         auto view = registry.view<Transform, Port>();
         for (auto entity : view) {
-            auto [transform] = view.get(entity);
+            auto [transform, port] = view.get(entity);
             rl::DrawCircleV(transform.position, radius, rl::RED);
+            rl::DrawRing(
+                transform.position,
+                port.radius,
+                port.radius + 0.15,
+                0.0,
+                360.0,
+                32,
+                rl::RED
+            );
         }
     }
 
