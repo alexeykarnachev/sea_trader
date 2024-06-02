@@ -1,3 +1,4 @@
+#include "entt/entity/entity.hpp"
 #include "entt/entity/fwd.hpp"
 #include "entt/entt.hpp"
 #include "stb/stb_perlin.h"
@@ -69,8 +70,8 @@ public:
         : radius(radius) {}
 };
 
-class Player {};
 class Ship {};
+class Player {};
 
 class Camera {
 public:
@@ -259,6 +260,9 @@ private:
     Camera camera;
 
     entt::registry registry;
+    entt::entity player_moored_port = entt::null;
+
+    bool window_should_close = false;
 
 public:
     Game()
@@ -334,7 +338,7 @@ public:
     void run() {
         static float last_update_time = 0.0;
 
-        while (!rl::WindowShouldClose()) {
+        while (!this->window_should_close) {
             float time = rl::GetTime();
 
             while (time - last_update_time >= this->dt) {
@@ -371,6 +375,11 @@ private:
         return entity;
     }
 
+    // entt::entity get_player() {
+    //     auto entity = registry.view<Player>().front();
+    //     return entity;
+    // }
+
     void update_camera() {
         static float min_view_width = 10.0f;
         static float max_view_width = 500.0f;
@@ -401,11 +410,11 @@ private:
         this->camera.view_width = std::min(this->camera.view_width, max_view_width);
     }
 
-    void update_player_input() {
+    void update_player_ship_movement() {
         static float torque = 30.0;
         static float force = 4000.0;
 
-        auto entity = registry.view<Player, Transform, DynamicBody>().front();
+        auto entity = registry.view<Player>().front();
         auto &body = registry.get<DynamicBody>(entity);
 
         auto transform = registry.get<Transform>(entity);
@@ -417,6 +426,26 @@ private:
 
         if (rl::IsKeyDown(rl::KEY_W)) body.apply_force(forward, force);
         if (rl::IsKeyDown(rl::KEY_S)) body.apply_force(forward, -force);
+    }
+
+    void update_player_entering_port() {
+        bool is_enter_pressed = rl::IsKeyPressed(rl::KEY_ENTER);
+        if (!is_enter_pressed) return;
+
+        auto player_entity = registry.view<Player>().front();
+        auto &player_transform = registry.get<Transform>(player_entity);
+
+        auto view = registry.view<Transform, Port>();
+        for (auto port_entity : view) {
+            auto [port_transform, port] = view.get(port_entity);
+            float dist = rl::Vector2Distance(
+                player_transform.position, port_transform.position
+            );
+            if (dist <= port.radius) {
+                this->player_moored_port = port_entity;
+                return;
+            }
+        }
     }
 
     void update_dynamic_bodies() {
@@ -466,10 +495,22 @@ private:
         }
     }
 
+    void update_window_should_close() {
+        bool is_alt_f4_pressed = IsKeyDown(rl::KEY_LEFT_ALT) && IsKeyPressed(rl::KEY_F4);
+        bool is_escape_pressed = rl::IsKeyPressed(rl::KEY_ESCAPE);
+        this->window_should_close = (rl::WindowShouldClose() || is_alt_f4_pressed)
+                                    && !is_escape_pressed;
+    }
+
     void update() {
-        this->update_camera();
-        this->update_player_input();
-        this->update_dynamic_bodies();
+        if (this->player_moored_port == entt::null) {
+            this->update_camera();
+            this->update_player_ship_movement();
+            this->update_player_entering_port();
+            this->update_dynamic_bodies();
+        }
+
+        this->update_window_should_close();
     }
 
     rl::Vector2 get_screen_to_world(rl::Vector2 p) {
@@ -556,6 +597,48 @@ private:
         rl::EndShaderMode();
     }
 
+    void update_and_draw_player_moored_port_ui() {
+        if (rl::IsKeyPressed(rl::KEY_ESCAPE)) {
+            this->player_moored_port = entt::null;
+            return;
+        }
+
+        rl::Shader shader = this->sprite_shader;
+        this->set_screen_camera(shader);
+
+        // ---------------------------------------------------------------
+        // products shop
+        static int n_products = 10;
+        static float pane_width = 600.0;
+        static float pane_border = 20.0;
+        static float product_height = 50.0;
+        static float product_width = pane_width - 2.0 * pane_border;
+        static float product_gap = 10.0;
+        static float pane_height = 2.0 * pane_border + n_products * product_height
+                                   + (n_products - 1) * product_gap;
+        static rl::Color pane_color = {100, 80, 60, 200};
+
+        float pane_x = 0.5 * (this->screen_width - pane_width);
+        float pane_y = 0.5 * (this->screen_height - pane_height);
+        rl::Rectangle pane_rect = {
+            .x = pane_x, .y = pane_y, .width = pane_width, .height = pane_height
+        };
+        rl::DrawRectangleRounded(pane_rect, 0.025, 8, pane_color);
+
+        float product_x = pane_x + pane_border;
+        float product_y = pane_y + pane_border;
+        for (int i = 0; i < n_products; ++i) {
+            rl::Rectangle product_rect = {
+                .x = product_x,
+                .y = product_y,
+                .width = product_width,
+                .height = product_height
+            };
+            rl::DrawRectangleRounded(product_rect, 0.25, 8, pane_color);
+            product_y += product_height + product_gap;
+        }
+    }
+
     void draw_ports() {
         static float radius = 0.8;
 
@@ -582,9 +665,15 @@ private:
     void draw() {
         rl::BeginDrawing();
         ClearBackground(rl::BLACK);
+
         this->draw_terrain();
         this->draw_ports();
         this->draw_ships();
+
+        if (this->player_moored_port != entt::null) {
+            this->update_and_draw_player_moored_port_ui();
+        }
+
         rl::EndDrawing();
     }
 };
