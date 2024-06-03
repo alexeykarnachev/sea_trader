@@ -252,6 +252,8 @@ private:
     rl::Shader terrain_shader;
     rl::Shader sprite_shader;
 
+    rl::Texture product_icons_texture;
+
     int screen_width;
     int screen_height;
     float dt = 1.0 / 60.0;
@@ -271,10 +273,12 @@ public:
         , terrain(200, 4.0, 0.6)
         , camera(50.0, terrain.get_center()) {
 
+        // window
         SetConfigFlags(rl::FLAG_MSAA_4X_HINT);
         rl::InitWindow(screen_width, screen_height, "Sea Trader");
         rl::SetTargetFPS(60);
 
+        // shaders
         this->terrain_shader = rl::LoadShader(
             "./resources/shaders/base.vert", "./resources/shaders/terrain.frag"
         );
@@ -282,10 +286,15 @@ public:
             "./resources/shaders/base.vert", "./resources/shaders/sprite.frag"
         );
 
-        rl::Vector2 terrain_center = this->terrain.get_center();
+        // sprites
+        this->product_icons_texture = rl::LoadTexture(
+            "./resources/sprites/product_icons.png"
+        );
 
         // ---------------------------------------------------------------
         // create player
+        rl::Vector2 terrain_center = this->terrain.get_center();
+
         {
             Transform transform(terrain_center);
             auto body = DynamicBody::create_ship();
@@ -374,11 +383,6 @@ private:
 
         return entity;
     }
-
-    // entt::entity get_player() {
-    //     auto entity = registry.view<Player>().front();
-    //     return entity;
-    // }
 
     void update_camera() {
         static float min_view_width = 10.0f;
@@ -611,13 +615,16 @@ private:
         static int n_products = 10;
         static float pane_width = 600.0;
         static float pane_border = 20.0;
+        static float product_border = 3.0;
         static float product_height = 50.0;
+        static float icon_size = product_height - 2.0 * product_border;
         static float product_width = pane_width - 2.0 * pane_border;
         static float product_gap = 10.0;
         static float pane_height = 2.0 * pane_border + n_products * product_height
                                    + (n_products - 1) * product_gap;
         static rl::Color pane_color = {100, 80, 60, 200};
 
+        // pane
         float pane_x = 0.5 * (this->screen_width - pane_width);
         float pane_y = 0.5 * (this->screen_height - pane_height);
         rl::Rectangle pane_rect = {
@@ -625,17 +632,33 @@ private:
         };
         rl::DrawRectangleRounded(pane_rect, 0.025, 8, pane_color);
 
-        float product_x = pane_x + pane_border;
-        float product_y = pane_y + pane_border;
+        // product panes
+        const float product_x = pane_x + pane_border;
+        const float product_y = pane_y + pane_border;
         for (int i = 0; i < n_products; ++i) {
             rl::Rectangle product_rect = {
                 .x = product_x,
-                .y = product_y,
+                .y = product_y + (product_height + product_gap) * i,
                 .width = product_width,
                 .height = product_height
             };
             rl::DrawRectangleRounded(product_rect, 0.25, 8, pane_color);
-            product_y += product_height + product_gap;
+        }
+
+        // product icons
+        const float icon_x = product_x + product_border;
+        const float icon_y = product_y + product_border;
+        for (int i = 0; i < n_products; ++i) {
+            rl::Rectangle src = {.x = i * 64.0f, .y = 0.0, .width = 64.0, .height = 64.0};
+            rl::Rectangle dst = {
+                .x = icon_x,
+                .y = icon_y + (product_height + product_gap) * i,
+                .width = icon_size,
+                .height = icon_size,
+            };
+            rl::DrawTexturePro(
+                this->product_icons_texture, src, dst, {0.0, 0.0}, 0.0, rl::WHITE
+            );
         }
     }
 
