@@ -1,5 +1,6 @@
 #include "./ui.hpp"
 
+#include <cstdio>
 #include <string>
 
 namespace rl {
@@ -16,13 +17,13 @@ const rl::Color LINE_DARK_COLOR = {10, 10, 10, 255};
 
 // rect
 const rl::Color RECT_COLD_COLOR = {70, 50, 30, 255};
-const rl::Color RECT_HOVER_COLOR = {130, 110, 90, 255};
+const rl::Color RECT_HOVER_COLOR = {110, 90, 70, 255};
 
 // sprite
-const rl::Color SPRITE_COLD_TINT = {155, 155, 155, 255};
-const rl::Color SPRITE_HOVER_TINT = {200, 200, 200, 255};
-const rl::Color SPRITE_DOWN_TINT = {255, 255, 255, 255};
-const rl::Color SPRITE_SELECTED_TINT = {255, 255, 255, 255};
+const rl::Color SPRITE_COLD_TINT = {90, 70, 50, 255};
+const rl::Color SPRITE_HOVER_TINT = {110, 90, 70, 255};
+const rl::Color SPRITE_DOWN_TINT = {245, 245, 245, 255};
+const rl::Color SPRITE_SELECTED_TINT = {245, 245, 245, 255};
 
 // text
 const rl::Color TEXT_LIGHT_COLOR = {245, 245, 245, 255};
@@ -42,13 +43,21 @@ const rl::Color RADIO_BUTTON_HOVER_COLOR = {100, 80, 60, 255};
 const rl::Color RADIO_BUTTON_DOWN_COLOR = {140, 120, 100, 255};
 const rl::Color RADIO_BUTTON_SELECTED_COLOR = {140, 120, 100, 255};
 
-// arrow
-const rl::Rectangle RIGHT_ARROW_ICON_SRC = {
-    .x = 0.0, .y = 0.0, .width = 32.0, .height = 32.0
-};
-const rl::Rectangle LEFT_ARROW_ICON_SRC = {
-    .x = 0.0, .y = 0.0, .width = -32.0, .height = 32.0
-};
+// increment button
+const rl::Color INCREMENT_BUTTON_COLD_COLOR = {80, 60, 40, 255};
+const rl::Color INCREMENT_BUTTON_HOVER_COLOR = {100, 80, 60, 255};
+const rl::Color INCREMENT_BUTTON_DOWN_COLOR = {140, 120, 100, 255};
+
+// sprite src
+rl::Rectangle get_sprite_src(SpriteName sprite_name) {
+    switch (sprite_name) {
+        case SpriteName::LEFT_ARROW_ICON_SRC:
+            return {.x = 0.0, .y = 0.0, .width = -32.0, .height = 32.0};
+        case SpriteName::RIGHT_ARROW_ICON_SRC:
+            return {.x = 0.0, .y = 0.0, .width = 32.0, .height = 32.0};
+        default: return {.x = 0.0, .y = 0.0, .width = -32.0, .height = 32.0};
+    }
+}
 
 rl::Texture texture;
 
@@ -68,7 +77,14 @@ enum class RadioButtonState {
     COLD,
     HOVER,
     DOWN,
+    RELEASE,
     SELECTED,
+};
+
+enum class IncrementButtonState {
+    COLD,
+    HOVER,
+    DOWN,
 };
 
 struct Button {
@@ -118,7 +134,7 @@ struct RadioButton {
             this->color = RADIO_BUTTON_SELECTED_COLOR;
             this->tint = SPRITE_SELECTED_TINT;
         } else if (is_hover && is_lmb_released) {
-            this->state = RadioButtonState::SELECTED;
+            this->state = RadioButtonState::RELEASE;
             this->color = RADIO_BUTTON_SELECTED_COLOR;
             this->tint = SPRITE_SELECTED_TINT;
 
@@ -139,7 +155,59 @@ struct RadioButton {
     }
 
     bool as_bool() {
-        return this->state == RadioButtonState::SELECTED;
+        return this->state == RadioButtonState::RELEASE;
+    }
+};
+
+struct IncrementButton {
+    const double first_increment_period = 0.5;
+    const double next_increments_period = 0.033;
+
+    IncrementButtonState state;
+
+    rl::Color color;
+    rl::Color tint;
+
+    IncrementButton(
+        rl::Rectangle dst,
+        double *last_increment_time,
+        int *value,
+        int speed,
+        int min,
+        int max
+    ) {
+        bool is_hover = rl::CheckCollisionPointRec(mouse_position, dst);
+
+        if (is_hover && is_lmb_down) {
+            this->state = IncrementButtonState::DOWN;
+            this->color = INCREMENT_BUTTON_DOWN_COLOR;
+            this->tint = SPRITE_DOWN_TINT;
+
+            double time = rl::GetTime();
+            double dt = time - (*last_increment_time);
+
+            if (*last_increment_time <= 0.0) {
+                *last_increment_time = time + this->first_increment_period;
+                *value += speed;
+            } else if (dt >= 0.0) {
+                *last_increment_time = time + this->next_increments_period;
+                *value += speed;
+            }
+        } else if (is_hover) {
+            this->state = IncrementButtonState::HOVER;
+            this->color = INCREMENT_BUTTON_HOVER_COLOR;
+            this->tint = SPRITE_HOVER_TINT;
+            *last_increment_time = 0.0;
+        } else {
+            this->state = IncrementButtonState::COLD;
+            this->color = INCREMENT_BUTTON_COLD_COLOR;
+            this->tint = SPRITE_COLD_TINT;
+            *last_increment_time = 0.0;
+        }
+    }
+
+    bool as_bool() {
+        return this->state == IncrementButtonState::DOWN;
     }
 };
 
@@ -196,6 +264,10 @@ void rect_hover(rl::Rectangle dst) {
 void sprite(rl::Texture texture, rl::Rectangle src, rl::Rectangle dst) {
     rl::DrawTexturePro(texture, src, dst, {0.0, 0.0}, 0.0, rl::WHITE);
 }
+void sprite(SpriteName sprite_name, rl::Rectangle dst) {
+    rl::Rectangle src = get_sprite_src(sprite_name);
+    return sprite(texture, src, dst);
+}
 
 // -----------------------------------------------------------------------
 // text
@@ -225,11 +297,16 @@ void text_error(std::string str, float x, float y, int size) {
 
 // -----------------------------------------------------------------------
 // button
-bool button_sprite(rl::Rectangle src, rl::Rectangle dst) {
+bool button_sprite(rl::Texture texture, rl::Rectangle src, rl::Rectangle dst) {
     Button btn(dst);
 
     rl::DrawTexturePro(texture, src, dst, {0.0, 0.0}, 0.0, btn.tint);
     return btn.as_bool();
+}
+
+bool button_sprite(SpriteName sprite_name, rl::Rectangle dst) {
+    rl::Rectangle src = get_sprite_src(sprite_name);
+    return button_sprite(texture, src, dst);
 }
 
 bool button_rect(rl::Rectangle dst) {
@@ -241,13 +318,20 @@ bool button_rect(rl::Rectangle dst) {
 
 // -----------------------------------------------------------------------
 // radio button
-bool radio_button_sprite(rl::Rectangle src, rl::Rectangle dst, int *store, int value) {
+bool radio_button_sprite(
+    rl::Texture texture, rl::Rectangle src, rl::Rectangle dst, int *store, int value
+) {
     RadioButton btn(dst, store, value);
 
     rl::DrawTexturePro(texture, src, dst, {0.0, 0.0}, 0.0, btn.tint);
     return btn.as_bool();
 }
-
+bool radio_button_sprite(
+    SpriteName sprite_name, rl::Rectangle dst, int *store, int value
+) {
+    rl::Rectangle src = get_sprite_src(sprite_name);
+    return radio_button_sprite(texture, src, dst, store, value);
+}
 bool radio_button_rect(rl::Rectangle dst, int *store, int value) {
     RadioButton btn(dst, store, value);
 
@@ -256,19 +340,49 @@ bool radio_button_rect(rl::Rectangle dst, int *store, int value) {
 }
 
 // -----------------------------------------------------------------------
-// arrow button
-bool button_left_arrow(float x, float y, float size) {
-    rl::Rectangle dst = {.x = x, .y = y, .width = size, .height = size};
-    button_sprite(LEFT_ARROW_ICON_SRC, dst);
+// increment button
+bool increment_button_sprite(
+    rl::Texture texture,
+    rl::Rectangle src,
+    rl::Rectangle dst,
+    double *last_increment_time,
+    int *value,
+    int speed,
+    int min,
+    int max
+) {
+    IncrementButton btn(dst, last_increment_time, value, speed, min, max);
 
-    return 0;
+    rl::DrawTexturePro(texture, src, dst, {0.0, 0.0}, 0.0, btn.tint);
+    return btn.as_bool();
+}
+bool increment_button_sprite(
+    SpriteName sprite_name,
+    rl::Rectangle dst,
+    double *last_increment_time,
+    int *value,
+    int speed,
+    int min,
+    int max
+) {
+    rl::Rectangle src = get_sprite_src(sprite_name);
+    return increment_button_sprite(
+        texture, src, dst, last_increment_time, value, speed, min, max
+    );
 }
 
-bool button_right_arrow(float x, float y, float size) {
-    rl::Rectangle dst = {.x = x, .y = y, .width = size, .height = size};
-    button_sprite(RIGHT_ARROW_ICON_SRC, dst);
+bool increment_button_rect(
+    rl::Rectangle dst,
+    double *last_increment_time,
+    int *value,
+    int speed,
+    int min,
+    int max
+) {
+    IncrementButton btn(dst, last_increment_time, value, speed, min, max);
 
-    return 0;
+    rl::DrawRectangleRec(dst, btn.color);
+    return btn.as_bool();
 }
 
 }  // namespace ui

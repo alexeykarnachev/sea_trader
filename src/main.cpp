@@ -639,6 +639,8 @@ private:
 
         static int selected_product_i = -1;
         static int selected_product_n_buy = 0;
+        static double last_increment_time_left = 0.0;
+        static double last_increment_time_right = 0.0;
 
         // pane
         float pane_x = 0.5 * (this->screen_width - pane_width);
@@ -714,7 +716,7 @@ private:
                 // buy amount
                 {
                     int font_size = 0.8 * product_name_font_size;
-                    auto n_str = std::to_string(selected_product_n_buy);
+                    auto n_str = std::to_string(std::abs(selected_product_n_buy));
                     float offset_y = product_name_font_size + row_border;
 
                     std::string text;
@@ -730,13 +732,30 @@ private:
                 float mid_y = row_y + offset_y + 0.5 * row_height;
 
                 // arrows
-                ui::button_left_arrow(
-                    row_x + row_border, mid_y - 0.5f * ui_icon_size_dst, ui_icon_size_dst
+                ui::increment_button_sprite(
+                    ui::SpriteName::LEFT_ARROW_ICON_SRC,
+                    {.x = row_x + row_border,
+                     .y = mid_y - 0.5f * ui_icon_size_dst,
+                     .width = ui_icon_size_dst,
+                     .height = ui_icon_size_dst},
+                    &last_increment_time_left,
+                    &selected_product_n_buy,
+                    +1,
+                    0,
+                    100
                 );
-                ui::button_right_arrow(
-                    row_x + row_width - row_border - ui_icon_size_dst,
-                    mid_y - 0.5f * ui_icon_size_dst,
-                    ui_icon_size_dst
+
+                ui::increment_button_sprite(
+                    ui::SpriteName::RIGHT_ARROW_ICON_SRC,
+                    {.x = row_x + row_width - row_border - ui_icon_size_dst,
+                     .y = mid_y - 0.5f * ui_icon_size_dst,
+                     .width = ui_icon_size_dst,
+                     .height = ui_icon_size_dst},
+                    &last_increment_time_right,
+                    &selected_product_n_buy,
+                    -1,
+                    0,
+                    100
                 );
             }
         }

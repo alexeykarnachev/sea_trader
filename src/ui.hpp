@@ -7,6 +7,12 @@ namespace rl {
 
 namespace st {
 namespace ui {
+
+enum class SpriteName {
+    RIGHT_ARROW_ICON_SRC,
+    LEFT_ARROW_ICON_SRC,
+};
+
 void load();
 void unload();
 void begin();
@@ -26,7 +32,8 @@ void rect_hover(rl::Rectangle dst);
 
 // -----------------------------------------------------------------------
 // sprite
-void sprite(rl::Texture, rl::Rectangle src, rl::Rectangle dst);
+void sprite(rl::Texture texture, rl::Rectangle src, rl::Rectangle dst);
+void sprite(SpriteName sprite_name, rl::Rectangle dst);
 
 // -----------------------------------------------------------------------
 // text
@@ -39,17 +46,49 @@ void text_error(std::string str, float x, float y, int size);
 
 // -----------------------------------------------------------------------
 // button
+bool button_sprite(rl::Texture texture, rl::Rectangle src, rl::Rectangle dst);
+bool button_sprite(SpriteName sprite_name, rl::Rectangle dst);
 bool button_rect(rl::Rectangle dst);
 
 // -----------------------------------------------------------------------
 // radio button
-bool radio_button_sprite(rl::Rectangle src, rl::Rectangle dst, int *store, int value);
+bool radio_button_sprite(
+    rl::Texture texture, rl::Rectangle src, rl::Rectangle dst, int *store, int value
+);
+bool radio_button_sprite(
+    SpriteName sprite_name, rl::Rectangle dst, int *store, int value
+);
 bool radio_button_rect(rl::Rectangle dst, int *store, int value);
 
 // -----------------------------------------------------------------------
-// arrow button
-bool button_left_arrow(float x, float y, float size);
-bool button_right_arrow(float x, float y, float size);
+// increment button
+bool increment_button_sprite(
+    rl::Texture texture,
+    rl::Rectangle src,
+    rl::Rectangle dst,
+    double *last_increment_time,
+    int *value,
+    int speed,
+    int min,
+    int max
+);
+bool increment_button_sprite(
+    SpriteName sprite_name,
+    rl::Rectangle dst,
+    double *last_increment_time,
+    int *value,
+    int speed,
+    int min,
+    int max
+);
+bool increment_button_rect(
+    rl::Rectangle dst,
+    double *last_increment_time,
+    int *value,
+    int speed,
+    int min,
+    int max
+);
 }  // namespace ui
 
 }  // namespace st
