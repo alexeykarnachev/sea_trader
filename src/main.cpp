@@ -639,8 +639,6 @@ private:
 
         static int selected_product_i = -1;
         static int selected_product_n_buy = 0;
-        static double last_increment_time_left = 0.0;
-        static double last_increment_time_right = 0.0;
 
         // pane
         float pane_x = 0.5 * (this->screen_width - pane_width);
@@ -738,7 +736,6 @@ private:
                      .y = mid_y - 0.5f * ui_icon_size_dst,
                      .width = ui_icon_size_dst,
                      .height = ui_icon_size_dst},
-                    &last_increment_time_left,
                     &selected_product_n_buy,
                     +1,
                     0,
@@ -751,7 +748,6 @@ private:
                      .y = mid_y - 0.5f * ui_icon_size_dst,
                      .width = ui_icon_size_dst,
                      .height = ui_icon_size_dst},
-                    &last_increment_time_right,
                     &selected_product_n_buy,
                     -1,
                     0,

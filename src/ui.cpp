@@ -160,22 +160,17 @@ struct RadioButton {
 };
 
 struct IncrementButton {
-    const double first_increment_period = 0.5;
-    const double next_increments_period = 0.033;
-
+public:
     IncrementButtonState state;
 
     rl::Color color;
     rl::Color tint;
 
-    IncrementButton(
-        rl::Rectangle dst,
-        double *last_increment_time,
-        int *value,
-        int speed,
-        int min,
-        int max
-    ) {
+    IncrementButton(rl::Rectangle dst, int *value, int speed, int min, int max) {
+        static const double long_increment_period = 0.5;
+        static const double short_increment_period = 0.033;
+        static double last_increment_time = 0.0;
+
         bool is_hover = rl::CheckCollisionPointRec(mouse_position, dst);
 
         if (is_hover && is_lmb_down) {
@@ -184,25 +179,24 @@ struct IncrementButton {
             this->tint = SPRITE_DOWN_TINT;
 
             double time = rl::GetTime();
-            double dt = time - (*last_increment_time);
+            double dt = time - last_increment_time;
 
-            if (*last_increment_time <= 0.0) {
-                *last_increment_time = time + this->first_increment_period;
+            if (last_increment_time <= 0.0) {
+                last_increment_time = time + long_increment_period;
                 *value += speed;
             } else if (dt >= 0.0) {
-                *last_increment_time = time + this->next_increments_period;
+                last_increment_time = time + short_increment_period;
                 *value += speed;
             }
         } else if (is_hover) {
             this->state = IncrementButtonState::HOVER;
             this->color = INCREMENT_BUTTON_HOVER_COLOR;
             this->tint = SPRITE_HOVER_TINT;
-            *last_increment_time = 0.0;
+            last_increment_time = 0.0;
         } else {
             this->state = IncrementButtonState::COLD;
             this->color = INCREMENT_BUTTON_COLD_COLOR;
             this->tint = SPRITE_COLD_TINT;
-            *last_increment_time = 0.0;
         }
     }
 
@@ -345,41 +339,25 @@ bool increment_button_sprite(
     rl::Texture texture,
     rl::Rectangle src,
     rl::Rectangle dst,
-    double *last_increment_time,
     int *value,
     int speed,
     int min,
     int max
 ) {
-    IncrementButton btn(dst, last_increment_time, value, speed, min, max);
+    IncrementButton btn(dst, value, speed, min, max);
 
     rl::DrawTexturePro(texture, src, dst, {0.0, 0.0}, 0.0, btn.tint);
     return btn.as_bool();
 }
 bool increment_button_sprite(
-    SpriteName sprite_name,
-    rl::Rectangle dst,
-    double *last_increment_time,
-    int *value,
-    int speed,
-    int min,
-    int max
+    SpriteName sprite_name, rl::Rectangle dst, int *value, int speed, int min, int max
 ) {
     rl::Rectangle src = get_sprite_src(sprite_name);
-    return increment_button_sprite(
-        texture, src, dst, last_increment_time, value, speed, min, max
-    );
+    return increment_button_sprite(texture, src, dst, value, speed, min, max);
 }
 
-bool increment_button_rect(
-    rl::Rectangle dst,
-    double *last_increment_time,
-    int *value,
-    int speed,
-    int min,
-    int max
-) {
-    IncrementButton btn(dst, last_increment_time, value, speed, min, max);
+bool increment_button_rect(rl::Rectangle dst, int *value, int speed, int min, int max) {
+    IncrementButton btn(dst, value, speed, min, max);
 
     rl::DrawRectangleRec(dst, btn.color);
     return btn.as_bool();

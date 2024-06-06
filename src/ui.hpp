@@ -66,29 +66,15 @@ bool increment_button_sprite(
     rl::Texture texture,
     rl::Rectangle src,
     rl::Rectangle dst,
-    double *last_increment_time,
     int *value,
     int speed,
     int min,
     int max
 );
 bool increment_button_sprite(
-    SpriteName sprite_name,
-    rl::Rectangle dst,
-    double *last_increment_time,
-    int *value,
-    int speed,
-    int min,
-    int max
+    SpriteName sprite_name, rl::Rectangle dst, int *value, int speed, int min, int max
 );
-bool increment_button_rect(
-    rl::Rectangle dst,
-    double *last_increment_time,
-    int *value,
-    int speed,
-    int min,
-    int max
-);
+bool increment_button_rect(rl::Rectangle dst, int *value, int speed, int min, int max);
 }  // namespace ui
 
 }  // namespace st
