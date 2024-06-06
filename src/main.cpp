@@ -2,6 +2,7 @@
 #include "entt/entity/fwd.hpp"
 #include "entt/entt.hpp"
 #include "stb/stb_perlin.h"
+#include "ui.hpp"
 #include <cfloat>
 #include <cmath>
 #include <cstdio>
@@ -254,7 +255,6 @@ private:
     rl::Shader sprite_shader;
 
     rl::Texture product_icons_texture;
-    rl::Texture ui_icons_texture;
 
     int screen_width;
     int screen_height;
@@ -280,6 +280,9 @@ public:
         rl::InitWindow(screen_width, screen_height, "Sea Trader");
         rl::SetTargetFPS(60);
 
+        // ui
+        ui::load();
+
         // shaders
         this->terrain_shader = rl::LoadShader(
             "./resources/shaders/base.vert", "./resources/shaders/terrain.frag"
@@ -293,9 +296,6 @@ public:
             "./resources/sprites/product_icons_64.png"
         );
         SetTextureFilter(this->product_icons_texture, rl::TEXTURE_FILTER_BILINEAR);
-
-        this->ui_icons_texture = rl::LoadTexture("./resources/sprites/ui_icons_32.png");
-        SetTextureFilter(this->ui_icons_texture, rl::TEXTURE_FILTER_BILINEAR);
 
         // ---------------------------------------------------------------
         // create player
@@ -619,20 +619,9 @@ private:
         rl::Shader shader = this->sprite_shader;
         this->set_screen_camera(shader);
 
-        rl::Vector2 mouse_position = rl::GetMousePosition();
-        bool is_lmb_pressed = rl::IsMouseButtonPressed(rl::MOUSE_BUTTON_LEFT);
-        bool is_lmb_down = rl::IsMouseButtonDown(rl::MOUSE_BUTTON_LEFT);
-
         // ---------------------------------------------------------------
         // products shop
-        static const rl::Color pane_color = {80, 60, 40, 200};
-        static const rl::Color pane_color_hover = {100, 80, 60, 200};
-        static const rl::Color pane_color_selected = {140, 120, 100, 200};
-        static const rl::Color ui_icon_color = {155, 155, 155, 255};
-        static const rl::Color ui_icon_color_hover = {200, 200, 200, 255};
-        static const rl::Color ui_icon_color_down = {255, 255, 255, 255};
         static const float product_icon_size_src = 64.0;
-        static const float ui_icon_size_src = 32.0;
         static const int column_name_font_size = 32;
         static const int product_name_font_size = 20;
         static const int n_rows = 10;
@@ -657,7 +646,7 @@ private:
         rl::Rectangle pane_rect = {
             .x = pane_x, .y = pane_y, .width = pane_width, .height = pane_height
         };
-        rl::DrawRectangleRounded(pane_rect, 0.025, 8, pane_color);
+        ui::rect_cold(pane_rect);
 
         const float row_x = pane_x + pane_border;
         const float mid_x = pane_x + 0.5 * pane_width;
@@ -667,34 +656,23 @@ private:
         rl::Rectangle header_rect = {
             .x = row_x, .y = header_y, .width = row_width, .height = row_height
         };
-        rl::DrawRectangleRounded(header_rect, 0.25, 8, pane_color);
+        ui::rect_cold(header_rect);
 
         // product panes
         const float row_y = header_y + row_height + row_gap;
         for (int i = 0; i < n_rows; ++i) {
             float offset_y = (row_height + row_gap) * i;
 
-            rl::Rectangle product_rect = {
+            rl::Rectangle dst = {
                 .x = row_x,
                 .y = row_y + offset_y,
                 .width = row_width,
                 .height = row_height
             };
 
-            bool is_hover = rl::CheckCollisionPointRec(mouse_position, product_rect);
-
-            rl::Color color = pane_color;
-            if (selected_product_i == i) {
-                color = pane_color_selected;
-            } else if (is_hover && is_lmb_pressed) {
-                selected_product_i = i;
+            if (ui::radio_button_rect(dst, &selected_product_i, i)) {
                 selected_product_n_buy = 0;
-                color = pane_color_selected;
-            } else if (is_hover) {
-                color = pane_color_hover;
             }
-
-            rl::DrawRectangleRounded(product_rect, 0.25, 8, color);
         }
 
         // rows
@@ -717,9 +695,7 @@ private:
                 .width = product_icon_size_dst,
                 .height = product_icon_size_dst
             };
-            rl::DrawTexturePro(
-                this->product_icons_texture, src, dst, {0.0, 0.0}, 0.0, rl::WHITE
-            );
+            ui::sprite(this->product_icons_texture, src, dst);
 
             // product name
             float gap = 10.0;
@@ -727,76 +703,40 @@ private:
             float text_y = dst.y;
             float text_x = dst.x + dst.width + gap;
 
-            auto color = is_selected ? rl::BLACK : rl::GRAY;
-            rl::DrawText(text, text_x, text_y, product_name_font_size, color);
+            if (is_selected) {
+                ui::text_dark(text, text_x, text_y, product_name_font_size);
+            } else {
+                ui::text_mild(text, text_x, text_y, product_name_font_size);
+            }
 
             // selected product
             if (is_selected) {
                 // buy amount
                 {
                     int font_size = 0.8 * product_name_font_size;
+                    auto n_str = std::to_string(selected_product_n_buy);
+                    float offset_y = product_name_font_size + row_border;
 
                     std::string text;
-                    rl::Color color;
-
-                    auto n_str = std::to_string(selected_product_n_buy);
                     if (selected_product_n_buy >= 0) {
                         text = "Buy: " + n_str;
-                        color = rl::GREEN;
+                        ui::text_info(text, text_x, text_y + offset_y, font_size);
                     } else {
                         text = "Sell: " + n_str;
-                        color = rl::RED;
+                        ui::text_error(text, text_x, text_y + offset_y, font_size);
                     }
-
-                    rl::DrawText(
-                        text.c_str(),
-                        text_x,
-                        text_y + product_name_font_size + row_border,
-                        font_size,
-                        color
-                    );
                 }
 
                 float mid_y = row_y + offset_y + 0.5 * row_height;
 
-                // left arrow
-                rl::Rectangle src = {
-                    .x = 0.0,
-                    .y = 0.0,
-                    .width = -ui_icon_size_src,
-                    .height = ui_icon_size_src
-                };
-                rl::Rectangle dst = {
-                    .x = row_x + row_border,
-                    .y = mid_y - 0.5f * ui_icon_size_dst,
-                    .width = ui_icon_size_dst,
-                    .height = ui_icon_size_dst
-                };
-
-                bool is_hover = rl::CheckCollisionPointRec(mouse_position, dst);
-                rl::Color color = ui_icon_color;
-                if (is_hover && is_lmb_down) {
-                    color = ui_icon_color_down;
-                } else if (is_hover) {
-                    color = ui_icon_color_hover;
-                }
-                rl::DrawTexturePro(
-                    this->ui_icons_texture, src, dst, {0.0, 0.0}, 0.0, color
+                // arrows
+                ui::button_left_arrow(
+                    row_x + row_border, mid_y - 0.5f * ui_icon_size_dst, ui_icon_size_dst
                 );
-
-                // right arrow
-                src.width *= -1;
-                dst.x = row_x + row_width - row_border - ui_icon_size_dst;
-
-                is_hover = rl::CheckCollisionPointRec(mouse_position, dst);
-                color = ui_icon_color;
-                if (is_hover && is_lmb_down) {
-                    color = ui_icon_color_down;
-                } else if (is_hover) {
-                    color = ui_icon_color_hover;
-                }
-                rl::DrawTexturePro(
-                    this->ui_icons_texture, src, dst, {0.0, 0.0}, 0.0, color
+                ui::button_right_arrow(
+                    row_x + row_width - row_border - ui_icon_size_dst,
+                    mid_y - 0.5f * ui_icon_size_dst,
+                    ui_icon_size_dst
                 );
             }
         }
@@ -808,7 +748,7 @@ private:
             auto text = "Name";
             int text_width = rl::MeasureText(text, column_name_font_size);
             float text_x = mid_x - 0.5 * text_width;
-            rl::DrawText(text, text_x, text_y, column_name_font_size, rl::RAYWHITE);
+            ui::text_light(text, text_x, text_y, column_name_font_size);
         }
 
         {
@@ -817,7 +757,7 @@ private:
             float col_right_x = mid_x - 0.5 * mid_col_width;
             float col_mid_x = 0.5 * (row_x + col_right_x);
             float text_x = col_mid_x - 0.5 * text_width;
-            rl::DrawText(text, text_x, text_y, column_name_font_size, rl::RAYWHITE);
+            ui::text_light(text, text_x, text_y, column_name_font_size);
         }
 
         {
@@ -826,7 +766,7 @@ private:
             float col_left_x = mid_x + 0.5 * mid_col_width;
             float col_mid_x = 0.5 * (row_x + row_width + col_left_x);
             float text_x = col_mid_x - 0.5 * text_width;
-            rl::DrawText(text, text_x, text_y, column_name_font_size, rl::RAYWHITE);
+            ui::text_light(text, text_x, text_y, column_name_font_size);
         }
 
         // column vertical lines
@@ -835,12 +775,12 @@ private:
 
         {
             float line_x = mid_x - 0.5 * mid_col_width;
-            rl::DrawLine(line_x, line_top_y, line_x, line_bot_y, rl::DARKGRAY);
+            ui::line_mild(line_x, line_top_y, line_x, line_bot_y);
         }
 
         {
             float line_x = mid_x + 0.5 * mid_col_width;
-            rl::DrawLine(line_x, line_top_y, line_x, line_bot_y, rl::DARKGRAY);
+            ui::line_mild(line_x, line_top_y, line_x, line_bot_y);
         }
     }
 
@@ -875,6 +815,7 @@ private:
         this->draw_ports();
         this->draw_ships();
 
+        ui::begin();
         if (this->player_moored_port != entt::null) {
             this->update_and_draw_player_moored_port_ui();
         }
