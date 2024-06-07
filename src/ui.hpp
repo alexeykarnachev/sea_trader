@@ -1,12 +1,51 @@
 #pragma once
 
-#include <string>
 namespace rl {
 #include "raylib/raylib.h"
 }  // namespace rl
 
 namespace st {
 namespace ui {
+
+namespace color {
+// line
+const rl::Color LINE_LIGHT = {245, 245, 245, 255};
+const rl::Color LINE_MILD = {150, 150, 150, 255};
+const rl::Color LINE_DARK = {10, 10, 10, 255};
+
+// rect
+const rl::Color RECT_COLD = {70, 50, 30, 255};
+const rl::Color RECT_HOVER = {110, 90, 70, 255};
+
+// sprite tints
+const rl::Color SPRITE_COLD = {90, 70, 50, 255};
+const rl::Color SPRITE_HOVER = {110, 90, 70, 255};
+const rl::Color SPRITE_DOWN = {245, 245, 245, 255};
+const rl::Color SPRITE_SELECTED = {245, 245, 245, 255};
+
+// text
+const rl::Color TEXT_LIGHT = {245, 245, 245, 255};
+const rl::Color TEXT_MILD = {150, 150, 150, 255};
+const rl::Color TEXT_DARK = {10, 10, 10, 255};
+const rl::Color TEXT_BUY = {50, 255, 50, 255};
+const rl::Color TEXT_SELL = {255, 50, 50, 255};
+
+// button
+const rl::Color BUTTON_COLD = {90, 70, 50, 255};
+const rl::Color BUTTON_HOVER = {110, 90, 70, 255};
+const rl::Color BUTTON_DOWN = {140, 120, 100, 255};
+
+// radio button
+const rl::Color RADIO_BUTTON_COLD = {80, 60, 40, 255};
+const rl::Color RADIO_BUTTON_HOVER = {100, 80, 60, 255};
+const rl::Color RADIO_BUTTON_DOWN = {140, 120, 100, 255};
+const rl::Color RADIO_BUTTON_SELECTED = {140, 120, 100, 255};
+
+// increment button
+const rl::Color INCREMENT_BUTTON_COLD = {80, 60, 40, 255};
+const rl::Color INCREMENT_BUTTON_HOVER = {100, 80, 60, 255};
+const rl::Color INCREMENT_BUTTON_DOWN = {140, 120, 100, 255};
+}  // namespace color
 
 enum class SpriteName {
     RIGHT_ARROW_ICON_SRC,
@@ -18,31 +57,9 @@ void unload();
 void begin();
 
 // -----------------------------------------------------------------------
-// line
-void line(float x0, float y0, float x1, float y1, rl::Color color);
-void line_light(float x0, float y0, float x1, float y1);
-void line_mild(float x0, float y0, float x1, float y1);
-void line_dark(float x0, float y0, float x1, float y1);
-
-// -----------------------------------------------------------------------
-// rect
-void rect(rl::Rectangle dst, rl::Color color);
-void rect_cold(rl::Rectangle dst);
-void rect_hover(rl::Rectangle dst);
-
-// -----------------------------------------------------------------------
 // sprite
 void sprite(rl::Texture texture, rl::Rectangle src, rl::Rectangle dst);
 void sprite(SpriteName sprite_name, rl::Rectangle dst);
-
-// -----------------------------------------------------------------------
-// text
-void text(std::string str, float x, float y, int size, rl::Color color);
-void text_light(std::string str, float x, float y, int size);
-void text_mild(std::string str, float x, float y, int size);
-void text_dark(std::string str, float x, float y, int size);
-void text_info(std::string str, float x, float y, int size);
-void text_error(std::string str, float x, float y, int size);
 
 // -----------------------------------------------------------------------
 // button

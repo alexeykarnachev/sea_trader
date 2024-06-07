@@ -1,8 +1,8 @@
 #include "entt/entity/entity.hpp"
 #include "entt/entity/fwd.hpp"
 #include "entt/entt.hpp"
+#include "renderer.hpp"
 #include "stb/stb_perlin.h"
-#include "ui.hpp"
 #include <cfloat>
 #include <cmath>
 #include <cstdio>
@@ -14,8 +14,12 @@
 namespace rl {
 #include "raylib/raylib.h"
 #include "raylib/raymath.h"
-#include "raylib/rlgl.h"
 }  // namespace rl
+
+// -----------------------------------------------------------------------
+#include "camera.hpp"
+#include "cargo.hpp"
+#include "ui.hpp"
 
 namespace st {
 class Transform {
@@ -68,29 +72,18 @@ public:
 class Port {
 public:
     const float radius;
+    cargo::Cargo cargo;
+
     Port(float radius)
         : radius(radius) {}
 };
 
-class Ship {};
-class Player {};
-
-class Camera {
+class Ship {
 public:
-    float view_width;
-    rl::Vector2 position;
-    rl::Vector2 target;
-
-    Camera(float view_width, rl::Vector2 position)
-        : view_width(view_width)
-        , position(position)
-        , target(position) {}
-
-    void reset_position(rl::Vector2 position) {
-        this->position = position;
-        this->target = position;
-    }
+    cargo::Cargo cargo;
 };
+
+class Player {};
 
 class Terrain {
 private:
@@ -251,17 +244,10 @@ public:
 
 class Game {
 private:
-    rl::Shader terrain_shader;
-    rl::Shader sprite_shader;
-
-    rl::Texture product_icons_texture;
-
-    int screen_width;
-    int screen_height;
     float dt = 1.0 / 60.0;
 
     Terrain terrain;
-    Camera camera;
+    camera::Camera camera;
 
     entt::registry registry;
     entt::entity player_moored_port = entt::null;
@@ -270,32 +256,12 @@ private:
 
 public:
     Game()
-        : screen_width(1500)
-        , screen_height(1000)
-        , terrain(200, 4.0, 0.6)
+        : terrain(200, 4.0, 0.6)
         , camera(50.0, terrain.get_center()) {
 
-        // window
-        SetConfigFlags(rl::FLAG_MSAA_4X_HINT);
-        rl::InitWindow(screen_width, screen_height, "Sea Trader");
-        rl::SetTargetFPS(60);
-
-        // ui
+        renderer::load();
         ui::load();
-
-        // shaders
-        this->terrain_shader = rl::LoadShader(
-            "./resources/shaders/base.vert", "./resources/shaders/terrain.frag"
-        );
-        this->sprite_shader = rl::LoadShader(
-            "./resources/shaders/base.vert", "./resources/shaders/sprite.frag"
-        );
-
-        // sprites
-        this->product_icons_texture = rl::LoadTexture(
-            "./resources/sprites/product_icons_64.png"
-        );
-        SetTextureFilter(this->product_icons_texture, rl::TEXTURE_FILTER_BILINEAR);
+        cargo::load();
 
         // ---------------------------------------------------------------
         // create player
@@ -350,7 +316,9 @@ public:
     }
 
     ~Game() {
-        rl::CloseWindow();
+        ui::unload();
+        cargo::unload();
+        renderer::unload();
     }
 
     void run() {
@@ -527,6 +495,9 @@ private:
     }
 
     rl::Vector2 get_screen_to_world(rl::Vector2 p) {
+        int screen_width = rl::GetScreenWidth();
+        int screen_height = rl::GetScreenHeight();
+
         p.x /= screen_width;
         p.y /= screen_height;
         float aspect = (float)screen_width / screen_height;
@@ -540,32 +511,10 @@ private:
         return {x, y};
     }
 
-    void set_camera(const Camera &camera, rl::Shader shader) {
-        rl::rlDrawRenderBatchActive();
-
-        int position_loc = GetShaderLocation(shader, "camera.position");
-        int view_width_loc = GetShaderLocation(shader, "camera.view_width");
-        int aspect_loc = GetShaderLocation(shader, "camera.aspect");
-
-        float aspect = (float)this->screen_width / this->screen_height;
-
-        SetShaderValue(shader, position_loc, &camera.position, rl::SHADER_UNIFORM_VEC2);
-        SetShaderValue(
-            shader, view_width_loc, &camera.view_width, rl::SHADER_UNIFORM_FLOAT
-        );
-        SetShaderValue(shader, aspect_loc, &aspect, rl::SHADER_UNIFORM_FLOAT);
-    }
-
-    void set_screen_camera(rl::Shader shader) {
-        rl::Vector2 position = {screen_width / 2.0f, screen_height / 2.0f};
-        Camera camera = Camera(this->screen_width, position);
-        this->set_camera(camera, shader);
-    }
-
     void draw_terrain() {
-        rl::Shader shader = this->terrain_shader;
+        rl::Shader shader = renderer::terrain_shader;
         rl::Texture texture = this->terrain.get_heights_texture();
-        this->set_camera(this->camera, shader);
+        renderer::set_camera(this->camera, shader);
 
         int water_level_loc = GetShaderLocation(shader, "water_level");
         SetShaderValue(
@@ -589,13 +538,13 @@ private:
         static float height = 0.5;
         static float width = 1.0;
 
-        rl::Shader shader = this->sprite_shader;
-        this->set_camera(this->camera, shader);
+        rl::Shader shader = renderer::sprite_shader;
+        renderer::set_camera(this->camera, shader);
         BeginShaderMode(shader);
 
         auto view = registry.view<Transform, Ship>();
         for (auto entity : view) {
-            auto [transform] = view.get(entity);
+            auto [transform, ship] = view.get(entity);
 
             rl::Vector2 origin = {0.5f * width, 0.5f * height};
             rl::Rectangle rect = {
@@ -610,21 +559,12 @@ private:
         rl::EndShaderMode();
     }
 
-    void update_and_draw_player_moored_port_ui() {
-        if (rl::IsKeyPressed(rl::KEY_ESCAPE)) {
-            this->player_moored_port = entt::null;
-            return;
-        }
-
-        rl::Shader shader = this->sprite_shader;
-        this->set_screen_camera(shader);
-
-        // ---------------------------------------------------------------
-        // products shop
-        static const float product_icon_size_src = 64.0;
+    void update_and_draw_products_shop() {
+        static cargo::Cargo diff_cargo;
+        static const int n_rows = cargo::N_PRODUCTS;
         static const int column_name_font_size = 32;
-        static const int product_name_font_size = 20;
-        static const int n_rows = 10;
+        static const int product_name_font_size = 27;
+        static const int product_n_units_font_size = 27;
         static const float pane_width = 600.0;
         static const float pane_border = 20.0;
         static const float row_border = 3.0;
@@ -638,25 +578,44 @@ private:
         static const float mid_col_width = 220.0;
 
         static int selected_product_i = -1;
-        static int selected_product_n_buy = 0;
 
+        if (rl::IsKeyPressed(rl::KEY_ESCAPE)) {
+            this->player_moored_port = entt::null;
+            diff_cargo.reset();
+            return;
+        }
+
+        int screen_width = rl::GetScreenWidth();
+        int screen_height = rl::GetScreenHeight();
+        rl::Shader shader = renderer::sprite_shader;
+        renderer::set_screen_camera(shader);
+
+        auto entity = registry.view<Player>().front();
+        auto &ship = registry.get<Ship>(entity);
+        auto &port = registry.get<Port>(this->player_moored_port);
+
+        // ---------------------------------------------------------------
         // pane
-        float pane_x = 0.5 * (this->screen_width - pane_width);
-        float pane_y = 0.5 * (this->screen_height - pane_height);
+        float pane_x = 0.5 * (screen_width - pane_width);
+        float pane_y = 0.5 * (screen_height - pane_height);
         rl::Rectangle pane_rect = {
             .x = pane_x, .y = pane_y, .width = pane_width, .height = pane_height
         };
-        ui::rect_cold(pane_rect);
+        rl::DrawRectangleRec(pane_rect, ui::color::RECT_COLD);
 
         const float row_x = pane_x + pane_border;
         const float mid_x = pane_x + 0.5 * pane_width;
 
+        // ---------------------------------------------------------------
         // header
         const float header_y = pane_y + pane_border;
         rl::Rectangle header_rect = {
             .x = row_x, .y = header_y, .width = row_width, .height = row_height
         };
-        ui::rect_cold(header_rect);
+        rl::DrawRectangleRec(header_rect, ui::color::RECT_COLD);
+
+        // ---------------------------------------------------------------
+        // rows
 
         // product panes
         const float row_y = header_y + row_height + row_gap;
@@ -670,73 +629,99 @@ private:
                 .height = row_height
             };
 
-            if (ui::radio_button_rect(dst, &selected_product_i, i)) {
-                selected_product_n_buy = 0;
-            }
+            ui::radio_button_rect(dst, &selected_product_i, i);
         }
 
-        // rows
+        // product panes content
         const float icon_x = mid_x - 0.5 * mid_col_width + row_border;
         const float icon_y = row_y + row_border;
         for (int i = 0; i < n_rows; ++i) {
-            bool is_selected = selected_product_i == i;
             float offset_y = (row_height + row_gap) * i;
+            bool is_selected = selected_product_i == i;
+            auto text_color = is_selected ? ui::color::TEXT_DARK : ui::color::TEXT_MILD;
+            int *diff_n_units = &diff_cargo.products[i].n_units;
+
+            // ship's n_units
+            int ship_n_units = ship.cargo.products[i].n_units + (*diff_n_units);
+            auto ship_n_units_str = std::to_string(ship_n_units);
+            int ship_n_units_x = row_x + row_border + ui_icon_size_dst + 20.0;
+            rl::DrawText(
+                ship_n_units_str.c_str(),
+                ship_n_units_x,
+                icon_y + offset_y,
+                product_n_units_font_size,
+                text_color
+            );
+
+            // port's n_units
+            int port_n_units = port.cargo.products[i].n_units - (*diff_n_units);
+            auto port_n_units_str = std::to_string(port_n_units);
+            int port_n_units_str_width = rl::MeasureText(
+                port_n_units_str.c_str(), product_n_units_font_size
+            );
+            float port_n_units_x = row_x + row_width - row_border - ui_icon_size_dst
+                                   - port_n_units_str_width - 20.0;
+            rl::DrawText(
+                port_n_units_str.c_str(),
+                port_n_units_x,
+                icon_y + offset_y,
+                product_n_units_font_size,
+                text_color
+            );
 
             // product icon
-            rl::Rectangle src = {
-                .x = i * product_icon_size_src,
-                .y = 0.0,
-                .width = product_icon_size_src,
-                .height = product_icon_size_src
-            };
             rl::Rectangle dst = {
                 .x = icon_x,
                 .y = icon_y + offset_y,
                 .width = product_icon_size_dst,
                 .height = product_icon_size_dst
             };
-            ui::sprite(this->product_icons_texture, src, dst);
+            cargo::draw_product_icon(i, dst);
 
             // product name
-            float gap = 10.0;
-            auto text = "Product Name";
+            auto text = ship.cargo.products[i].name;
             float text_y = dst.y;
-            float text_x = dst.x + dst.width + gap;
+            float text_x = dst.x + dst.width + 10.0;
+            rl::DrawText(
+                text.c_str(), text_x, text_y, product_name_font_size, text_color
+            );
 
-            if (is_selected) {
-                ui::text_dark(text, text_x, text_y, product_name_font_size);
-            } else {
-                ui::text_mild(text, text_x, text_y, product_name_font_size);
+            // buy/sell n_units
+            {
+                int font_size = 0.8 * product_name_font_size;
+                auto text = std::to_string(std::abs(*diff_n_units));
+                float offset_y = product_name_font_size + row_border;
+
+                if (*diff_n_units > 0) {
+                    rl::DrawText(
+                        text.c_str(),
+                        text_x,
+                        text_y + offset_y,
+                        font_size,
+                        ui::color::TEXT_BUY
+                    );
+                } else if (*diff_n_units < 0) {
+                    rl::DrawText(
+                        text.c_str(),
+                        text_x,
+                        text_y + offset_y,
+                        font_size,
+                        ui::color::TEXT_SELL
+                    );
+                }
             }
 
-            // selected product
+            // arrows
             if (is_selected) {
-                // buy amount
-                {
-                    int font_size = 0.8 * product_name_font_size;
-                    auto n_str = std::to_string(std::abs(selected_product_n_buy));
-                    float offset_y = product_name_font_size + row_border;
-
-                    std::string text;
-                    if (selected_product_n_buy >= 0) {
-                        text = "Buy: " + n_str;
-                        ui::text_info(text, text_x, text_y + offset_y, font_size);
-                    } else {
-                        text = "Sell: " + n_str;
-                        ui::text_error(text, text_x, text_y + offset_y, font_size);
-                    }
-                }
-
                 float mid_y = row_y + offset_y + 0.5 * row_height;
 
-                // arrows
                 ui::increment_button_sprite(
                     ui::SpriteName::LEFT_ARROW_ICON_SRC,
                     {.x = row_x + row_border,
                      .y = mid_y - 0.5f * ui_icon_size_dst,
                      .width = ui_icon_size_dst,
                      .height = ui_icon_size_dst},
-                    &selected_product_n_buy,
+                    diff_n_units,
                     +1,
                     0,
                     100
@@ -748,7 +733,7 @@ private:
                      .y = mid_y - 0.5f * ui_icon_size_dst,
                      .width = ui_icon_size_dst,
                      .height = ui_icon_size_dst},
-                    &selected_product_n_buy,
+                    diff_n_units,
                     -1,
                     0,
                     100
@@ -760,28 +745,34 @@ private:
         float text_y = header_y + 0.5 * (row_height - column_name_font_size);
 
         {
-            auto text = "Name";
+            auto text = "Product";
             int text_width = rl::MeasureText(text, column_name_font_size);
             float text_x = mid_x - 0.5 * text_width;
-            ui::text_light(text, text_x, text_y, column_name_font_size);
+            rl::DrawText(
+                text, text_x, text_y, column_name_font_size, ui::color::LINE_LIGHT
+            );
         }
 
         {
-            auto text = "Buy";
+            auto text = "Ship";
             int text_width = rl::MeasureText(text, column_name_font_size);
             float col_right_x = mid_x - 0.5 * mid_col_width;
             float col_mid_x = 0.5 * (row_x + col_right_x);
             float text_x = col_mid_x - 0.5 * text_width;
-            ui::text_light(text, text_x, text_y, column_name_font_size);
+            rl::DrawText(
+                text, text_x, text_y, column_name_font_size, ui::color::LINE_LIGHT
+            );
         }
 
         {
-            auto text = "Sell";
+            auto text = "Port";
             int text_width = rl::MeasureText(text, column_name_font_size);
             float col_left_x = mid_x + 0.5 * mid_col_width;
             float col_mid_x = 0.5 * (row_x + row_width + col_left_x);
             float text_x = col_mid_x - 0.5 * text_width;
-            ui::text_light(text, text_x, text_y, column_name_font_size);
+            rl::DrawText(
+                text, text_x, text_y, column_name_font_size, ui::color::LINE_LIGHT
+            );
         }
 
         // column vertical lines
@@ -790,20 +781,20 @@ private:
 
         {
             float line_x = mid_x - 0.5 * mid_col_width;
-            ui::line_mild(line_x, line_top_y, line_x, line_bot_y);
+            rl::DrawLine(line_x, line_top_y, line_x, line_bot_y, ui::color::LINE_MILD);
         }
 
         {
             float line_x = mid_x + 0.5 * mid_col_width;
-            ui::line_mild(line_x, line_top_y, line_x, line_bot_y);
+            rl::DrawLine(line_x, line_top_y, line_x, line_bot_y, ui::color::LINE_MILD);
         }
     }
 
     void draw_ports() {
         static float radius = 0.8;
 
-        rl::Shader shader = this->sprite_shader;
-        this->set_camera(this->camera, shader);
+        rl::Shader shader = renderer::sprite_shader;
+        renderer::set_camera(this->camera, shader);
         BeginShaderMode(shader);
 
         auto view = registry.view<Transform, Port>();
@@ -832,7 +823,7 @@ private:
 
         ui::begin();
         if (this->player_moored_port != entt::null) {
-            this->update_and_draw_player_moored_port_ui();
+            this->update_and_draw_products_shop();
         }
 
         rl::EndDrawing();
