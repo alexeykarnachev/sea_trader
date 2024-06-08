@@ -1,5 +1,6 @@
 #include "camera.hpp"
 #include "cargo.hpp"
+#include "dynamic_body.hpp"
 #include "entt/entity/fwd.hpp"
 #include "entt/entt.hpp"
 #include "raylib/raylib.h"
@@ -24,43 +25,6 @@ public:
     Transform(Vector2 position, float rotation = 0.0)
         : position(position)
         , rotation(rotation) {}
-};
-
-class DynamicBody {
-public:
-    Vector2 linear_velocity = {0.0, 0.0};
-    float angular_velocity = 0.0;
-    Vector2 net_force = {0.0, 0.0};
-    float net_torque = 0.0;
-
-    float mass;
-    float linear_damping;
-
-    float moment_of_inertia;
-    float angular_damping;
-
-    DynamicBody(
-        float mass, float linear_damping, float moment_of_inertia, float angular_damping
-    )
-        : mass(mass)
-        , linear_damping(linear_damping)
-        , moment_of_inertia(moment_of_inertia)
-        , angular_damping(angular_damping) {}
-
-    void apply_force(Vector2 direction, float magnitude) {
-        direction = Vector2Normalize(direction);
-        Vector2 force = Vector2Scale(direction, magnitude);
-        this->net_force = Vector2Add(this->net_force, force);
-    }
-
-    void apply_torque(float magnitude) {
-        this->net_torque += magnitude * 1.0;
-    }
-
-    static DynamicBody create_ship() {
-        DynamicBody body(1000.0, 1000.0, 1.0, 10.0);
-        return body;
-    }
 };
 
 class Port {
@@ -102,7 +66,7 @@ public:
             position.x -= 8.0;
             position.y -= 10.0;
             Transform transform(position);
-            auto body = DynamicBody::create_ship();
+            auto body = dynamic_body::create_ship_preset();
             this->create_player_ship(transform, body);
         }
 
@@ -169,16 +133,20 @@ public:
     }
 
 private:
-    entt::entity create_ship(Transform transform, DynamicBody dynamic_body) {
+    entt::entity create_ship(
+        Transform transform, dynamic_body::DynamicBody dynamic_body
+    ) {
         auto entity = registry::registry.create();
         registry::registry.emplace<Transform>(entity, transform);
-        registry::registry.emplace<DynamicBody>(entity, dynamic_body);
+        registry::registry.emplace<dynamic_body::DynamicBody>(entity, dynamic_body);
         registry::registry.emplace<Ship>(entity);
 
         return entity;
     }
 
-    entt::entity create_player_ship(Transform transform, DynamicBody dynamic_body) {
+    entt::entity create_player_ship(
+        Transform transform, dynamic_body::DynamicBody dynamic_body
+    ) {
         auto entity = this->create_ship(transform, dynamic_body);
         registry::registry.emplace<Player>(entity);
 
@@ -198,7 +166,7 @@ private:
         static float force = 4000.0;
 
         auto entity = registry::registry.view<Player>().front();
-        auto &body = registry::registry.get<DynamicBody>(entity);
+        auto &body = registry::registry.get<dynamic_body::DynamicBody>(entity);
 
         auto transform = registry::registry.get<Transform>(entity);
         float rotation = transform.rotation;
@@ -232,7 +200,7 @@ private:
     }
 
     void update_dynamic_bodies() {
-        auto view = registry::registry.view<Transform, DynamicBody>();
+        auto view = registry::registry.view<Transform, dynamic_body::DynamicBody>();
         for (auto entity : view) {
             auto [transform, body] = view.get(entity);
 
