@@ -2,6 +2,7 @@
 #include "entt/entity/fwd.hpp"
 #include "entt/entt.hpp"
 #include "renderer.hpp"
+#include "resources.hpp"
 #include "stb/stb_perlin.h"
 #include <cfloat>
 #include <cmath>
@@ -260,8 +261,8 @@ public:
         , camera(50.0, terrain.get_center()) {
 
         renderer::load();
+        resources::load();
         ui::load();
-        cargo::load();
 
         // ---------------------------------------------------------------
         // create player
@@ -317,7 +318,7 @@ public:
 
     ~Game() {
         ui::unload();
-        cargo::unload();
+        resources::unload();
         renderer::unload();
     }
 
@@ -512,7 +513,7 @@ private:
     }
 
     void draw_terrain() {
-        rl::Shader shader = renderer::terrain_shader;
+        rl::Shader shader = resources::terrain_shader;
         rl::Texture texture = this->terrain.get_heights_texture();
         renderer::set_camera(this->camera, shader);
 
@@ -538,7 +539,7 @@ private:
         static float height = 0.5;
         static float width = 1.0;
 
-        rl::Shader shader = renderer::sprite_shader;
+        rl::Shader shader = resources::sprite_shader;
         renderer::set_camera(this->camera, shader);
         BeginShaderMode(shader);
 
@@ -587,7 +588,7 @@ private:
 
         int screen_width = rl::GetScreenWidth();
         int screen_height = rl::GetScreenHeight();
-        rl::Shader shader = renderer::sprite_shader;
+        rl::Shader shader = resources::sprite_shader;
         renderer::set_screen_camera(shader);
 
         auto entity = registry.view<Player>().front();
@@ -676,7 +677,7 @@ private:
                 .width = product_icon_size_dst,
                 .height = product_icon_size_dst
             };
-            cargo::draw_product_icon(i, dst);
+            renderer::draw_product_icon(i, dst);
 
             // product name
             auto text = ship.cargo.products[i].name;
@@ -793,7 +794,7 @@ private:
     void draw_ports() {
         static float radius = 0.8;
 
-        rl::Shader shader = renderer::sprite_shader;
+        rl::Shader shader = resources::sprite_shader;
         renderer::set_camera(this->camera, shader);
         BeginShaderMode(shader);
 

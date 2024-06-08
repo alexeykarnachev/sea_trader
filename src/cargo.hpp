@@ -3,10 +3,6 @@
 #include <array>
 #include <string>
 
-namespace rl {
-#include "raylib/raylib.h"
-}  // namespace rl
-
 namespace st {
 namespace cargo {
 struct Product {
@@ -27,9 +23,6 @@ public:
     void reset();
 };
 
-void load();
-void unload();
-void draw_product_icon(int product_idx, rl::Rectangle dst);
-
 }  // namespace cargo
 }  // namespace st
+

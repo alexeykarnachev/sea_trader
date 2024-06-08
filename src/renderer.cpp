@@ -1,6 +1,7 @@
 #include "renderer.hpp"
 
 #include "camera.hpp"
+#include "resources.hpp"
 
 namespace rl {
 #include "raylib/raylib.h"
@@ -10,9 +11,6 @@ namespace rl {
 namespace st {
 namespace renderer {
 
-rl::Shader terrain_shader;
-rl::Shader sprite_shader;
-
 int screen_width = 1500;
 int screen_height = 1000;
 
@@ -20,18 +18,9 @@ void load() {
     SetConfigFlags(rl::FLAG_MSAA_4X_HINT);
     rl::InitWindow(screen_width, screen_height, "Sea Trader");
     rl::SetTargetFPS(60);
-
-    terrain_shader = rl::LoadShader(
-        "./resources/shaders/base.vert", "./resources/shaders/terrain.frag"
-    );
-    sprite_shader = rl::LoadShader(
-        "./resources/shaders/base.vert", "./resources/shaders/sprite.frag"
-    );
 }
 
 void unload() {
-    rl::UnloadShader(terrain_shader);
-    rl::UnloadShader(sprite_shader);
     rl::CloseWindow();
 }
 
@@ -53,6 +42,14 @@ void set_screen_camera(rl::Shader shader) {
     rl::Vector2 position = {screen_width / 2.0f, screen_height / 2.0f};
     auto camera = camera::Camera(screen_width, position);
     set_camera(camera, shader);
+}
+
+void draw_product_icon(int product_idx, rl::Rectangle dst) {
+    float x = product_idx * 64.0;
+    rl::Rectangle src = {.x = x, .y = 0.0, .width = 64.0, .height = 64.0};
+    rl::DrawTexturePro(
+        resources::product_icons_texture, src, dst, {0.0, 0.0}, 0.0, rl::WHITE
+    );
 }
 
 }  // namespace renderer

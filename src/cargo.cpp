@@ -27,22 +27,5 @@ void Cargo::reset() {
     }
 }
 
-rl::Texture product_icons_texture;
-
-void load() {
-    product_icons_texture = rl::LoadTexture("./resources/sprites/product_icons_64.png");
-    SetTextureFilter(product_icons_texture, rl::TEXTURE_FILTER_BILINEAR);
-}
-
-void unload() {
-    rl::UnloadTexture(product_icons_texture);
-}
-
-void draw_product_icon(int product_idx, rl::Rectangle dst) {
-    float x = product_idx * 64.0;
-    rl::Rectangle src = {.x = x, .y = 0.0, .width = 64.0, .height = 64.0};
-    rl::DrawTexturePro(product_icons_texture, src, dst, {0.0, 0.0}, 0.0, rl::WHITE);
-}
-
 }  // namespace cargo
 }  // namespace st
