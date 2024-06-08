@@ -2,6 +2,7 @@
 
 #include "cargo.hpp"
 #include "raylib/raylib.h"
+#include "registry.hpp"
 #include "renderer.hpp"
 #include "resources.hpp"
 
@@ -50,6 +51,10 @@ void update_and_draw() {
     }
 
     renderer::set_screen_camera(resources::sprite_shader);
+
+    // auto entity = registry::registry.view<Player>().front();
+    // auto &ship = registry.get<Ship>(entity);
+    // auto &port = registry.get<Port>(this->player_moored_port);
 }
 
 }  // namespace shop
@@ -57,11 +62,6 @@ void update_and_draw() {
 
 #if 0
 void update_and_draw_products_shop() {
-
-    int screen_width = GetScreenWidth();
-    int screen_height = GetScreenHeight();
-    Shader shader = resources::sprite_shader;
-    renderer::set_screen_camera(shader);
 
     auto entity = registry.view<Player>().front();
     auto &ship = registry.get<Ship>(entity);

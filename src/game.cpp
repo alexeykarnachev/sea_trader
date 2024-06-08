@@ -1,7 +1,7 @@
 #include "game.hpp"
 
 #include "camera.hpp"
-#include "cargo.hpp"
+#include "components.hpp"
 #include "dynamic_body.hpp"
 #include "entt/entity/fwd.hpp"
 #include "entt/entt.hpp"
@@ -20,57 +20,33 @@
 
 namespace st {
 namespace game {
-class Transform {
-public:
-    Vector2 position;
-    float rotation;
-
-    Transform(Vector2 position, float rotation = 0.0)
-        : position(position)
-        , rotation(rotation) {}
-};
-
-class Port {
-public:
-    const float radius;
-    cargo::Cargo cargo;
-
-    Port(float radius)
-        : radius(radius) {}
-};
-
-class Ship {
-public:
-    cargo::Cargo cargo;
-};
-
-class Player {};
-
 static const float dt = 1.0 / 60.0;
 static bool window_should_close = false;
 
-entt::entity create_ship(Transform transform, dynamic_body::DynamicBody dynamic_body) {
+entt::entity create_ship(
+    components::Transform transform, dynamic_body::DynamicBody dynamic_body
+) {
     auto entity = registry::registry.create();
-    registry::registry.emplace<Transform>(entity, transform);
+    registry::registry.emplace<components::Transform>(entity, transform);
     registry::registry.emplace<dynamic_body::DynamicBody>(entity, dynamic_body);
-    registry::registry.emplace<Ship>(entity);
+    registry::registry.emplace<components::Ship>(entity);
 
     return entity;
 }
 
 entt::entity create_player_ship(
-    Transform transform, dynamic_body::DynamicBody dynamic_body
+    components::Transform transform, dynamic_body::DynamicBody dynamic_body
 ) {
     auto entity = create_ship(transform, dynamic_body);
-    registry::registry.emplace<Player>(entity);
+    registry::registry.emplace<components::Player>(entity);
 
     return entity;
 }
 
-entt::entity create_port(Transform transform, Port port) {
+entt::entity create_port(components::Transform transform, components::Port port) {
     auto entity = registry::registry.create();
-    registry::registry.emplace<Transform>(entity, transform);
-    registry::registry.emplace<Port>(entity, port);
+    registry::registry.emplace<components::Transform>(entity, transform);
+    registry::registry.emplace<components::Port>(entity, port);
 
     return entity;
 }
@@ -79,10 +55,10 @@ void update_player_ship_movement() {
     static float torque = 30.0;
     static float force = 4000.0;
 
-    auto entity = registry::registry.view<Player>().front();
+    auto entity = registry::registry.view<components::Player>().front();
     auto &body = registry::registry.get<dynamic_body::DynamicBody>(entity);
 
-    auto transform = registry::registry.get<Transform>(entity);
+    auto transform = registry::registry.get<components::Transform>(entity);
     float rotation = transform.rotation;
     Vector2 forward = {cosf(rotation), sinf(rotation)};
 
@@ -97,10 +73,10 @@ void update_player_entering_port() {
     bool is_enter_pressed = IsKeyPressed(KEY_ENTER);
     if (!is_enter_pressed) return;
 
-    auto player_entity = registry::registry.view<Player>().front();
-    auto &player_transform = registry::registry.get<Transform>(player_entity);
+    auto player_entity = registry::registry.view<components::Player>().front();
+    auto &player_transform = registry::registry.get<components::Transform>(player_entity);
 
-    auto view = registry::registry.view<Transform, Port>();
+    auto view = registry::registry.view<components::Transform, components::Port>();
     for (auto port_entity : view) {
         auto [port_transform, port] = view.get(port_entity);
         float dist = Vector2Distance(player_transform.position, port_transform.position);
@@ -112,7 +88,8 @@ void update_player_entering_port() {
 }
 
 void update_dynamic_bodies() {
-    auto view = registry::registry.view<Transform, dynamic_body::DynamicBody>();
+    auto view = registry::registry.view<components::Transform, dynamic_body::DynamicBody>(
+    );
     for (auto entity : view) {
         auto [transform, body] = view.get(entity);
 
@@ -180,7 +157,7 @@ void draw_ships() {
     renderer::set_game_camera(shader);
     BeginShaderMode(shader);
 
-    auto view = registry::registry.view<Transform, Ship>();
+    auto view = registry::registry.view<components::Transform, components::Ship>();
     for (auto entity : view) {
         auto [transform, ship] = view.get(entity);
 
@@ -204,7 +181,7 @@ void draw_ports() {
     renderer::set_game_camera(shader);
     BeginShaderMode(shader);
 
-    auto view = registry::registry.view<Transform, Port>();
+    auto view = registry::registry.view<components::Transform, components::Port>();
     for (auto entity : view) {
         auto [transform, port] = view.get(entity);
         DrawCircleV(transform.position, radius, RED);
@@ -243,7 +220,7 @@ void load() {
         Vector2 position = terrain_center;
         position.x -= 8.0;
         position.y -= 10.0;
-        Transform transform(position);
+        components::Transform transform(position, 0.0);
         auto body = dynamic_body::create_ship_preset();
         create_player_ship(transform, body);
     }
@@ -279,8 +256,8 @@ void load() {
                 if (n > 0) {
                     int idx = std::rand() % n;
                     Vector2 position = candidates[idx];
-                    Transform transform(position);
-                    Port port(3.0);
+                    components::Transform transform(position, 0.0);
+                    components::Port port(3.0);
                     create_port(transform, port);
                 }
             }
