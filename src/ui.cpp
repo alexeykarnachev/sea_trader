@@ -17,12 +17,12 @@ Rectangle get_sprite_src(SpriteName sprite_name) {
     }
 }
 
-Texture texture;
+static Texture TEXTURE;
 
-Vector2 mouse_position;
-bool is_lmb_down;
-bool is_lmb_pressed;
-bool is_lmb_released;
+static Vector2 MOUSE_POSITION;
+static bool IS_LMB_DOWN;
+static bool IS_LMB_PRESSED;
+static bool IS_LMB_RELEASED;
 
 enum class ButtonState {
     COLD,
@@ -52,13 +52,13 @@ struct Button {
     Color tint;
 
     Button(Rectangle dst) {
-        bool is_hover = CheckCollisionPointRec(mouse_position, dst);
+        bool is_hover = CheckCollisionPointRec(MOUSE_POSITION, dst);
 
-        if (is_hover && is_lmb_released) {
+        if (is_hover && IS_LMB_RELEASED) {
             this->state = ButtonState::RELEASE;
             this->color = color::BUTTON_COLD;
             this->tint = color::SPRITE_COLD;
-        } else if (is_hover && is_lmb_down) {
+        } else if (is_hover && IS_LMB_DOWN) {
             this->state = ButtonState::DOWN;
             this->color = color::BUTTON_DOWN;
             this->tint = color::SPRITE_DOWN;
@@ -85,19 +85,19 @@ struct RadioButton {
     Color tint;
 
     RadioButton(Rectangle dst, int *store, int value) {
-        bool is_hover = CheckCollisionPointRec(mouse_position, dst);
+        bool is_hover = CheckCollisionPointRec(MOUSE_POSITION, dst);
 
         if (*store == value) {
             this->state = RadioButtonState::SELECTED;
             this->color = color::RADIO_BUTTON_SELECTED;
             this->tint = color::SPRITE_SELECTED;
-        } else if (is_hover && is_lmb_released) {
+        } else if (is_hover && IS_LMB_RELEASED) {
             this->state = RadioButtonState::RELEASE;
             this->color = color::RADIO_BUTTON_SELECTED;
             this->tint = color::SPRITE_SELECTED;
 
             *store = value;
-        } else if (is_hover && is_lmb_down) {
+        } else if (is_hover && IS_LMB_DOWN) {
             this->state = RadioButtonState::DOWN;
             this->color = color::RADIO_BUTTON_DOWN;
             this->tint = color::SPRITE_DOWN;
@@ -129,9 +129,9 @@ public:
         static const double short_increment_period = 0.033;
         static double last_increment_time = 0.0;
 
-        bool is_hover = CheckCollisionPointRec(mouse_position, dst);
+        bool is_hover = CheckCollisionPointRec(MOUSE_POSITION, dst);
 
-        if (is_hover && is_lmb_down) {
+        if (is_hover && IS_LMB_DOWN) {
             this->state = IncrementButtonState::DOWN;
             this->color = color::INCREMENT_BUTTON_DOWN;
             this->tint = color::SPRITE_DOWN;
@@ -162,19 +162,19 @@ public:
 };
 
 void load() {
-    texture = LoadTexture("./resources/sprites/ui_icons_32.png");
-    SetTextureFilter(texture, TEXTURE_FILTER_BILINEAR);
+    TEXTURE = LoadTexture("./resources/sprites/ui_icons_32.png");
+    SetTextureFilter(TEXTURE, TEXTURE_FILTER_BILINEAR);
 }
 
 void unload() {
-    UnloadTexture(texture);
+    UnloadTexture(TEXTURE);
 }
 
 void begin() {
-    mouse_position = GetMousePosition();
-    is_lmb_down = IsMouseButtonDown(MOUSE_BUTTON_LEFT);
-    is_lmb_pressed = IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
-    is_lmb_released = IsMouseButtonReleased(MOUSE_BUTTON_LEFT);
+    MOUSE_POSITION = GetMousePosition();
+    IS_LMB_DOWN = IsMouseButtonDown(MOUSE_BUTTON_LEFT);
+    IS_LMB_PRESSED = IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
+    IS_LMB_RELEASED = IsMouseButtonReleased(MOUSE_BUTTON_LEFT);
 }
 
 // -----------------------------------------------------------------------
@@ -184,7 +184,7 @@ void sprite(Texture texture, Rectangle src, Rectangle dst) {
 }
 void sprite(SpriteName sprite_name, Rectangle dst) {
     Rectangle src = get_sprite_src(sprite_name);
-    return sprite(texture, src, dst);
+    return sprite(TEXTURE, src, dst);
 }
 
 // -----------------------------------------------------------------------
@@ -198,7 +198,7 @@ bool button_sprite(Texture texture, Rectangle src, Rectangle dst) {
 
 bool button_sprite(SpriteName sprite_name, Rectangle dst) {
     Rectangle src = get_sprite_src(sprite_name);
-    return button_sprite(texture, src, dst);
+    return button_sprite(TEXTURE, src, dst);
 }
 
 bool button_rect(Rectangle dst) {
@@ -220,7 +220,7 @@ bool radio_button_sprite(
 }
 bool radio_button_sprite(SpriteName sprite_name, Rectangle dst, int *store, int value) {
     Rectangle src = get_sprite_src(sprite_name);
-    return radio_button_sprite(texture, src, dst, store, value);
+    return radio_button_sprite(TEXTURE, src, dst, store, value);
 }
 bool radio_button_rect(Rectangle dst, int *store, int value) {
     RadioButton btn(dst, store, value);
@@ -243,7 +243,7 @@ bool increment_button_sprite(
     SpriteName sprite_name, Rectangle dst, int *value, int speed, int min, int max
 ) {
     Rectangle src = get_sprite_src(sprite_name);
-    return increment_button_sprite(texture, src, dst, value, speed, min, max);
+    return increment_button_sprite(TEXTURE, src, dst, value, speed, min, max);
 }
 
 bool increment_button_rect(Rectangle dst, int *value, int speed, int min, int max) {

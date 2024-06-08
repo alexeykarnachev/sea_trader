@@ -5,10 +5,10 @@
 namespace st {
 namespace resources {
 
-extern Texture product_icons_texture;
+extern Texture PRODUCT_ICONS_TEXTURE;
 
-extern Shader terrain_shader;
-extern Shader sprite_shader;
+extern Shader TERRAIN_SHADER;
+extern Shader SPRITE_SHADER;
 
 void load();
 void unload();

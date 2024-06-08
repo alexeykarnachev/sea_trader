@@ -1,125 +1,121 @@
 #include "shop.hpp"
 
 #include "cargo.hpp"
+#include "components.hpp"
+#include "entt/entity/fwd.hpp"
 #include "raylib/raylib.h"
 #include "registry.hpp"
 #include "renderer.hpp"
 #include "resources.hpp"
+#include "ui.hpp"
 
 namespace st {
 namespace shop {
 
-static cargo::Cargo diff_cargo;
-static const int n_rows = cargo::N_PRODUCTS;
-static const int column_name_font_size = 32;
-static const int product_name_font_size = 27;
-static const int product_n_units_font_size = 27;
-static const float pane_width = 600.0;
-static const float pane_border = 20.0;
-static const float row_border = 3.0;
-static const float row_height = 60.0;
-static const float product_icon_size_dst = row_height - 2.0 * row_border;
-static const float ui_icon_size_dst = 0.7 * (row_height - 2.0 * row_border);
-static const float row_width = pane_width - 2.0 * pane_border;
-static const float row_gap = 5.0;
-static const float pane_height = 2.0 * pane_border + (n_rows + 1) * row_height
-                                 + n_rows * row_gap;
-static const float mid_col_width = 220.0;
-static int selected_product_i = -1;
+static cargo::Cargo DIFF_CARGO;
+static const int N_ROWS = cargo::N_PRODUCTS;
+static const int COLUMN_NAME_FONT_SIZE = 32;
+static const int PRODUCT_NAME_FONT_SIZE = 27;
+static const int PRODUCT_N_UNITS_FONT_SIZE = 27;
+static const float PANE_WIDTH = 600.0;
+static const float PANE_BORDER = 20.0;
+static const float ROW_BORDER = 3.0;
+static const float ROW_HEIGHT = 60.0;
+static const float PRODUCT_ICON_SIZE_DST = ROW_HEIGHT - 2.0 * ROW_BORDER;
+static const float UI_ICON_SIZE_DST = 0.7 * (ROW_HEIGHT - 2.0 * ROW_BORDER);
+static const float ROW_WIDTH = PANE_WIDTH - 2.0 * PANE_BORDER;
+static const float ROW_GAP = 5.0;
+static const float PANE_HEIGHT = 2.0 * PANE_BORDER + (N_ROWS + 1) * ROW_HEIGHT
+                                 + N_ROWS * ROW_GAP;
+static const float MID_COL_WIDTH = 220.0;
+static int SELECTED_PRODUCT_I = -1;
 
-static bool is_opened = false;
+static bool IS_OPENED = false;
+static entt::entity PLAYER_ENTITY;
+static entt::entity PORT_ENTITY;
 
-void open() {
-    is_opened = true;
+void open(entt::entity port_entity) {
+    PORT_ENTITY = port_entity;
+    PLAYER_ENTITY = registry::registry.view<components::Player>().front();
+    DIFF_CARGO.reset();
+    IS_OPENED = true;
 }
 
 void close() {
-    diff_cargo.reset();
-    is_opened = false;
+    IS_OPENED = false;
 }
 
 bool check_if_opened() {
-    return is_opened;
+    return IS_OPENED;
 }
 
 void update_and_draw() {
-    if (!is_opened) return;
+    if (!IS_OPENED) return;
 
     if (IsKeyPressed(KEY_ESCAPE)) {
         close();
         return;
     }
 
-    renderer::set_screen_camera(resources::sprite_shader);
+    renderer::set_screen_camera(resources::SPRITE_SHADER);
+    auto &ship = registry::registry.get<components::Ship>(PLAYER_ENTITY);
+    auto &port = registry::registry.get<components::Port>(PORT_ENTITY);
 
-    // auto entity = registry::registry.view<Player>().front();
-    // auto &ship = registry.get<Ship>(entity);
-    // auto &port = registry.get<Port>(this->player_moored_port);
-}
-
-}  // namespace shop
-}  // namespace st
-
-#if 0
-void update_and_draw_products_shop() {
-
-    auto entity = registry.view<Player>().front();
-    auto &ship = registry.get<Ship>(entity);
-    auto &port = registry.get<Port>(this->player_moored_port);
+    int screen_width = GetScreenWidth();
+    int screen_height = GetScreenHeight();
 
     // ---------------------------------------------------------------
     // pane
-    float pane_x = 0.5 * (screen_width - pane_width);
-    float pane_y = 0.5 * (screen_height - pane_height);
+    float pane_x = 0.5 * (screen_width - PANE_WIDTH);
+    float pane_y = 0.5 * (screen_height - PANE_HEIGHT);
     Rectangle pane_rect = {
-        .x = pane_x, .y = pane_y, .width = pane_width, .height = pane_height
+        .x = pane_x, .y = pane_y, .width = PANE_WIDTH, .height = PANE_HEIGHT
     };
     DrawRectangleRec(pane_rect, ui::color::RECT_COLD);
 
-    const float row_x = pane_x + pane_border;
-    const float mid_x = pane_x + 0.5 * pane_width;
+    const float row_x = pane_x + PANE_BORDER;
+    const float mid_x = pane_x + 0.5 * PANE_WIDTH;
 
     // ---------------------------------------------------------------
     // header
-    const float header_y = pane_y + pane_border;
+    const float header_y = pane_y + PANE_BORDER;
     Rectangle header_rect = {
-        .x = row_x, .y = header_y, .width = row_width, .height = row_height
+        .x = row_x, .y = header_y, .width = ROW_WIDTH, .height = ROW_HEIGHT
     };
     DrawRectangleRec(header_rect, ui::color::RECT_COLD);
 
     // ---------------------------------------------------------------
     // rows
-
     // product panes
-    const float row_y = header_y + row_height + row_gap;
-    for (int i = 0; i < n_rows; ++i) {
-        float offset_y = (row_height + row_gap) * i;
+    const float row_y = header_y + ROW_HEIGHT + ROW_GAP;
+    for (int i = 0; i < N_ROWS; ++i) {
+        float offset_y = (ROW_HEIGHT + ROW_GAP) * i;
 
         Rectangle dst = {
-            .x = row_x, .y = row_y + offset_y, .width = row_width, .height = row_height
+            .x = row_x, .y = row_y + offset_y, .width = ROW_WIDTH, .height = ROW_HEIGHT
         };
 
-        ui::radio_button_rect(dst, &selected_product_i, i);
+        ui::radio_button_rect(dst, &SELECTED_PRODUCT_I, i);
     }
 
     // product panes content
-    const float icon_x = mid_x - 0.5 * mid_col_width + row_border;
-    const float icon_y = row_y + row_border;
-    for (int i = 0; i < n_rows; ++i) {
-        float offset_y = (row_height + row_gap) * i;
-        bool is_selected = selected_product_i == i;
+    const float icon_x = mid_x - 0.5 * MID_COL_WIDTH + ROW_BORDER;
+    const float icon_y = row_y + ROW_BORDER;
+    for (int i = 0; i < N_ROWS; ++i) {
+        float offset_y = (ROW_HEIGHT + ROW_GAP) * i;
+        bool is_selected = SELECTED_PRODUCT_I == i;
         auto text_color = is_selected ? ui::color::TEXT_DARK : ui::color::TEXT_MILD;
-        int *diff_n_units = &diff_cargo.products[i].n_units;
+        int *diff_n_units = &DIFF_CARGO.products[i].n_units;
 
         // ship's n_units
         int ship_n_units = ship.cargo.products[i].n_units + (*diff_n_units);
         auto ship_n_units_str = std::to_string(ship_n_units);
-        int ship_n_units_x = row_x + row_border + ui_icon_size_dst + 20.0;
+        int ship_n_units_x = row_x + ROW_BORDER + UI_ICON_SIZE_DST + 20.0;
         DrawText(
             ship_n_units_str.c_str(),
             ship_n_units_x,
             icon_y + offset_y,
-            product_n_units_font_size,
+            PRODUCT_N_UNITS_FONT_SIZE,
             text_color
         );
 
@@ -127,15 +123,15 @@ void update_and_draw_products_shop() {
         int port_n_units = port.cargo.products[i].n_units - (*diff_n_units);
         auto port_n_units_str = std::to_string(port_n_units);
         int port_n_units_str_width = MeasureText(
-            port_n_units_str.c_str(), product_n_units_font_size
+            port_n_units_str.c_str(), PRODUCT_N_UNITS_FONT_SIZE
         );
-        float port_n_units_x = row_x + row_width - row_border - ui_icon_size_dst
+        float port_n_units_x = row_x + ROW_WIDTH - ROW_BORDER - UI_ICON_SIZE_DST
                                - port_n_units_str_width - 20.0;
         DrawText(
             port_n_units_str.c_str(),
             port_n_units_x,
             icon_y + offset_y,
-            product_n_units_font_size,
+            PRODUCT_N_UNITS_FONT_SIZE,
             text_color
         );
 
@@ -143,8 +139,8 @@ void update_and_draw_products_shop() {
         Rectangle dst = {
             .x = icon_x,
             .y = icon_y + offset_y,
-            .width = product_icon_size_dst,
-            .height = product_icon_size_dst
+            .width = PRODUCT_ICON_SIZE_DST,
+            .height = PRODUCT_ICON_SIZE_DST
         };
         renderer::draw_product_icon(i, dst);
 
@@ -152,13 +148,13 @@ void update_and_draw_products_shop() {
         auto text = ship.cargo.products[i].name;
         float text_y = dst.y;
         float text_x = dst.x + dst.width + 10.0;
-        DrawText(text.c_str(), text_x, text_y, product_name_font_size, text_color);
+        DrawText(text.c_str(), text_x, text_y, PRODUCT_NAME_FONT_SIZE, text_color);
 
         // buy/sell n_units
         {
-            int font_size = 0.8 * product_name_font_size;
+            int font_size = 0.8 * PRODUCT_NAME_FONT_SIZE;
             auto text = std::to_string(std::abs(*diff_n_units));
-            float offset_y = product_name_font_size + row_border;
+            float offset_y = PRODUCT_NAME_FONT_SIZE + ROW_BORDER;
 
             if (*diff_n_units > 0) {
                 DrawText(
@@ -181,14 +177,14 @@ void update_and_draw_products_shop() {
 
         // arrows
         if (is_selected) {
-            float mid_y = row_y + offset_y + 0.5 * row_height;
+            float mid_y = row_y + offset_y + 0.5 * ROW_HEIGHT;
 
             ui::increment_button_sprite(
                 ui::SpriteName::LEFT_ARROW_ICON_SRC,
-                {.x = row_x + row_border,
-                 .y = mid_y - 0.5f * ui_icon_size_dst,
-                 .width = ui_icon_size_dst,
-                 .height = ui_icon_size_dst},
+                {.x = row_x + ROW_BORDER,
+                 .y = mid_y - 0.5f * UI_ICON_SIZE_DST,
+                 .width = UI_ICON_SIZE_DST,
+                 .height = UI_ICON_SIZE_DST},
                 diff_n_units,
                 +1,
                 0,
@@ -197,10 +193,10 @@ void update_and_draw_products_shop() {
 
             ui::increment_button_sprite(
                 ui::SpriteName::RIGHT_ARROW_ICON_SRC,
-                {.x = row_x + row_width - row_border - ui_icon_size_dst,
-                 .y = mid_y - 0.5f * ui_icon_size_dst,
-                 .width = ui_icon_size_dst,
-                 .height = ui_icon_size_dst},
+                {.x = row_x + ROW_WIDTH - ROW_BORDER - UI_ICON_SIZE_DST,
+                 .y = mid_y - 0.5f * UI_ICON_SIZE_DST,
+                 .width = UI_ICON_SIZE_DST,
+                 .height = UI_ICON_SIZE_DST},
                 diff_n_units,
                 -1,
                 0,
@@ -210,45 +206,47 @@ void update_and_draw_products_shop() {
     }
 
     // column names
-    float text_y = header_y + 0.5 * (row_height - column_name_font_size);
+    float text_y = header_y + 0.5 * (ROW_HEIGHT - COLUMN_NAME_FONT_SIZE);
 
     {
         auto text = "Product";
-        int text_width = MeasureText(text, column_name_font_size);
+        int text_width = MeasureText(text, COLUMN_NAME_FONT_SIZE);
         float text_x = mid_x - 0.5 * text_width;
-        DrawText(text, text_x, text_y, column_name_font_size, ui::color::LINE_LIGHT);
+        DrawText(text, text_x, text_y, COLUMN_NAME_FONT_SIZE, ui::color::LINE_LIGHT);
     }
 
     {
         auto text = "Ship";
-        int text_width = MeasureText(text, column_name_font_size);
-        float col_right_x = mid_x - 0.5 * mid_col_width;
+        int text_width = MeasureText(text, COLUMN_NAME_FONT_SIZE);
+        float col_right_x = mid_x - 0.5 * MID_COL_WIDTH;
         float col_mid_x = 0.5 * (row_x + col_right_x);
         float text_x = col_mid_x - 0.5 * text_width;
-        DrawText(text, text_x, text_y, column_name_font_size, ui::color::LINE_LIGHT);
+        DrawText(text, text_x, text_y, COLUMN_NAME_FONT_SIZE, ui::color::LINE_LIGHT);
     }
 
     {
         auto text = "Port";
-        int text_width = MeasureText(text, column_name_font_size);
-        float col_left_x = mid_x + 0.5 * mid_col_width;
-        float col_mid_x = 0.5 * (row_x + row_width + col_left_x);
+        int text_width = MeasureText(text, COLUMN_NAME_FONT_SIZE);
+        float col_left_x = mid_x + 0.5 * MID_COL_WIDTH;
+        float col_mid_x = 0.5 * (row_x + ROW_WIDTH + col_left_x);
         float text_x = col_mid_x - 0.5 * text_width;
-        DrawText(text, text_x, text_y, column_name_font_size, ui::color::LINE_LIGHT);
+        DrawText(text, text_x, text_y, COLUMN_NAME_FONT_SIZE, ui::color::LINE_LIGHT);
     }
 
     // column vertical lines
-    float line_top_y = pane_y + pane_border;
-    float line_bot_y = pane_y + pane_height - pane_border;
+    float line_top_y = pane_y + PANE_BORDER;
+    float line_bot_y = pane_y + PANE_HEIGHT - PANE_BORDER;
 
     {
-        float line_x = mid_x - 0.5 * mid_col_width;
+        float line_x = mid_x - 0.5 * MID_COL_WIDTH;
         DrawLine(line_x, line_top_y, line_x, line_bot_y, ui::color::LINE_MILD);
     }
 
     {
-        float line_x = mid_x + 0.5 * mid_col_width;
+        float line_x = mid_x + 0.5 * MID_COL_WIDTH;
         DrawLine(line_x, line_top_y, line_x, line_bot_y, ui::color::LINE_MILD);
     }
 }
-#endif
+
+}  // namespace shop
+}  // namespace st

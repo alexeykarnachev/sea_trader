@@ -7,23 +7,23 @@
 namespace st {
 namespace camera {
 
-static float view_width = 50.0;
-static Vector2 target = {0.0, 0.0};
+static float VIEW_WIDTH = 50.0;
+static Vector2 TARGET = {0.0, 0.0};
 
-static float min_view_width = 10.0f;
-static float max_view_width = 500.0f;
-static float zoom_speed = 8.0f;
+static float MIN_VIEW_WIDTH = 10.0f;
+static float MAX_VIEW_WIDTH = 500.0f;
+static float ZOOM_SPEED = 8.0f;
 
 void set_target(Vector2 pos) {
-    target = pos;
+    TARGET = pos;
 }
 
 Vector2 get_position() {
-    return target;
+    return TARGET;
 }
 
 float get_view_width() {
-    return view_width;
+    return VIEW_WIDTH;
 }
 
 Vector2 get_screen_to_world(Vector2 p) {
@@ -33,11 +33,11 @@ Vector2 get_screen_to_world(Vector2 p) {
     p.x /= screen_width;
     p.y /= screen_height;
     float aspect = (float)screen_width / screen_height;
-    float view_height = view_width / aspect;
+    float view_height = VIEW_WIDTH / aspect;
     Vector2 center = get_position();
-    float left = center.x - 0.5 * view_width;
+    float left = center.x - 0.5 * VIEW_WIDTH;
     float top = center.y - 0.5 * view_height;
-    float x = left + view_width * p.x;
+    float x = left + VIEW_WIDTH * p.x;
     float y = top + view_height * p.y;
 
     return {x, y};
@@ -60,13 +60,13 @@ void update() {
     float wheel_move = GetMouseWheelMove();
     float zoom = 0.0;
     if (wheel_move > 0.0) {
-        zoom = -zoom_speed;
+        zoom = -ZOOM_SPEED;
     } else if (wheel_move < 0.0) {
-        zoom = zoom_speed;
+        zoom = ZOOM_SPEED;
     }
-    view_width += zoom;
-    view_width = std::max(view_width, min_view_width);
-    view_width = std::min(view_width, max_view_width);
+    VIEW_WIDTH += zoom;
+    VIEW_WIDTH = std::max(VIEW_WIDTH, MIN_VIEW_WIDTH);
+    VIEW_WIDTH = std::min(VIEW_WIDTH, MAX_VIEW_WIDTH);
 }
 
 }  // namespace camera

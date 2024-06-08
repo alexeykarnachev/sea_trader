@@ -20,8 +20,9 @@
 
 namespace st {
 namespace game {
-static const float dt = 1.0 / 60.0;
-static bool window_should_close = false;
+
+static const float DT = 1.0 / 60.0;
+static bool WINDOW_SHOULD_CLOSE = false;
 
 entt::entity create_ship(
     components::Transform transform, dynamic_body::DynamicBody dynamic_body
@@ -81,7 +82,7 @@ void update_player_entering_port() {
         auto [port_transform, port] = view.get(port_entity);
         float dist = Vector2Distance(player_transform.position, port_transform.position);
         if (dist <= port.radius) {
-            shop::open();
+            shop::open(port_entity);
             return;
         }
     }
@@ -98,7 +99,7 @@ void update_dynamic_bodies() {
         Vector2 net_force = Vector2Add(body.net_force, damping_force);
         Vector2 linear_acceleration = Vector2Scale(net_force, 1.0f / body.mass);
         body.linear_velocity = Vector2Add(
-            body.linear_velocity, Vector2Scale(linear_acceleration, dt)
+            body.linear_velocity, Vector2Scale(linear_acceleration, DT)
         );
         body.net_force = {0.0, 0.0};
 
@@ -106,11 +107,11 @@ void update_dynamic_bodies() {
         float damping_torque = body.angular_velocity * -body.angular_damping;
         float net_torque = body.net_torque + damping_torque;
         float angular_acceleration = net_torque / body.moment_of_inertia;
-        body.angular_velocity += angular_acceleration * dt;
+        body.angular_velocity += angular_acceleration * DT;
         body.net_torque = 0.0;
 
         // apply linear velocity
-        Vector2 linear_step = Vector2Scale(body.linear_velocity, dt);
+        Vector2 linear_step = Vector2Scale(body.linear_velocity, DT);
         Vector2 position = Vector2Add(transform.position, linear_step);
         if (Vector2Length(body.linear_velocity) < EPSILON) {
             body.linear_velocity = {0.0, 0.0};
@@ -123,7 +124,7 @@ void update_dynamic_bodies() {
         }
 
         // apply angular velocity
-        float angular_step = body.angular_velocity * dt;
+        float angular_step = body.angular_velocity * DT;
         transform.rotation = transform.rotation + angular_step;
         if (fabs(body.angular_velocity) < EPSILON) {
             body.angular_velocity = 0.0;
@@ -133,9 +134,7 @@ void update_dynamic_bodies() {
 
 void update_window_should_close() {
     bool is_alt_f4_pressed = IsKeyDown(KEY_LEFT_ALT) && IsKeyPressed(KEY_F4);
-    bool is_escape_pressed = IsKeyPressed(KEY_ESCAPE);
-    window_should_close = (WindowShouldClose() || is_alt_f4_pressed)
-                          && !is_escape_pressed;
+    WINDOW_SHOULD_CLOSE = (WindowShouldClose() || is_alt_f4_pressed);
 }
 
 void update() {
@@ -153,7 +152,7 @@ void draw_ships() {
     static float height = 0.5;
     static float width = 1.0;
 
-    Shader shader = resources::sprite_shader;
+    Shader shader = resources::SPRITE_SHADER;
     renderer::set_game_camera(shader);
     BeginShaderMode(shader);
 
@@ -177,7 +176,7 @@ void draw_ships() {
 void draw_ports() {
     static float radius = 0.8;
 
-    Shader shader = resources::sprite_shader;
+    Shader shader = resources::SPRITE_SHADER;
     renderer::set_game_camera(shader);
     BeginShaderMode(shader);
 
@@ -276,12 +275,12 @@ void run() {
     load();
 
     float last_update_time = 0.0;
-    while (!window_should_close) {
+    while (!WINDOW_SHOULD_CLOSE) {
         float time = GetTime();
 
-        while (time - last_update_time >= dt) {
+        while (time - last_update_time >= DT) {
             update();
-            last_update_time += dt;
+            last_update_time += DT;
         }
 
         draw();
