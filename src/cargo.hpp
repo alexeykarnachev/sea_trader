@@ -25,4 +25,3 @@ public:
 
 }  // namespace cargo
 }  // namespace st
-

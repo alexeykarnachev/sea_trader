@@ -1,16 +1,14 @@
 #pragma once
 
-namespace rl {
 #include "raylib/raylib.h"
-}
 
 namespace st {
 namespace resources {
 
-extern rl::Texture product_icons_texture;
+extern Texture product_icons_texture;
 
-extern rl::Shader terrain_shader;
-extern rl::Shader sprite_shader;
+extern Shader terrain_shader;
+extern Shader sprite_shader;
 
 void load();
 void unload();

@@ -1,12 +1,9 @@
 #include "shop.hpp"
 
 #include "cargo.hpp"
+#include "raylib/raylib.h"
 #include "renderer.hpp"
 #include "resources.hpp"
-
-namespace rl {
-#include "raylib/raylib.h"
-}
 
 namespace st {
 namespace shop {
@@ -40,14 +37,14 @@ void close() {
     is_opened = false;
 }
 
-bool get_is_opened() {
+bool check_if_opened() {
     return is_opened;
 }
 
 void update_and_draw() {
     if (!is_opened) return;
 
-    if (rl::IsKeyPressed(rl::KEY_ESCAPE)) {
+    if (IsKeyPressed(KEY_ESCAPE)) {
         close();
         return;
     }
@@ -61,9 +58,9 @@ void update_and_draw() {
 #if 0
 void update_and_draw_products_shop() {
 
-    int screen_width = rl::GetScreenWidth();
-    int screen_height = rl::GetScreenHeight();
-    rl::Shader shader = resources::sprite_shader;
+    int screen_width = GetScreenWidth();
+    int screen_height = GetScreenHeight();
+    Shader shader = resources::sprite_shader;
     renderer::set_screen_camera(shader);
 
     auto entity = registry.view<Player>().front();
@@ -74,10 +71,10 @@ void update_and_draw_products_shop() {
     // pane
     float pane_x = 0.5 * (screen_width - pane_width);
     float pane_y = 0.5 * (screen_height - pane_height);
-    rl::Rectangle pane_rect = {
+    Rectangle pane_rect = {
         .x = pane_x, .y = pane_y, .width = pane_width, .height = pane_height
     };
-    rl::DrawRectangleRec(pane_rect, ui::color::RECT_COLD);
+    DrawRectangleRec(pane_rect, ui::color::RECT_COLD);
 
     const float row_x = pane_x + pane_border;
     const float mid_x = pane_x + 0.5 * pane_width;
@@ -85,10 +82,10 @@ void update_and_draw_products_shop() {
     // ---------------------------------------------------------------
     // header
     const float header_y = pane_y + pane_border;
-    rl::Rectangle header_rect = {
+    Rectangle header_rect = {
         .x = row_x, .y = header_y, .width = row_width, .height = row_height
     };
-    rl::DrawRectangleRec(header_rect, ui::color::RECT_COLD);
+    DrawRectangleRec(header_rect, ui::color::RECT_COLD);
 
     // ---------------------------------------------------------------
     // rows
@@ -98,7 +95,7 @@ void update_and_draw_products_shop() {
     for (int i = 0; i < n_rows; ++i) {
         float offset_y = (row_height + row_gap) * i;
 
-        rl::Rectangle dst = {
+        Rectangle dst = {
             .x = row_x, .y = row_y + offset_y, .width = row_width, .height = row_height
         };
 
@@ -118,7 +115,7 @@ void update_and_draw_products_shop() {
         int ship_n_units = ship.cargo.products[i].n_units + (*diff_n_units);
         auto ship_n_units_str = std::to_string(ship_n_units);
         int ship_n_units_x = row_x + row_border + ui_icon_size_dst + 20.0;
-        rl::DrawText(
+        DrawText(
             ship_n_units_str.c_str(),
             ship_n_units_x,
             icon_y + offset_y,
@@ -129,12 +126,12 @@ void update_and_draw_products_shop() {
         // port's n_units
         int port_n_units = port.cargo.products[i].n_units - (*diff_n_units);
         auto port_n_units_str = std::to_string(port_n_units);
-        int port_n_units_str_width = rl::MeasureText(
+        int port_n_units_str_width = MeasureText(
             port_n_units_str.c_str(), product_n_units_font_size
         );
         float port_n_units_x = row_x + row_width - row_border - ui_icon_size_dst
                                - port_n_units_str_width - 20.0;
-        rl::DrawText(
+        DrawText(
             port_n_units_str.c_str(),
             port_n_units_x,
             icon_y + offset_y,
@@ -143,7 +140,7 @@ void update_and_draw_products_shop() {
         );
 
         // product icon
-        rl::Rectangle dst = {
+        Rectangle dst = {
             .x = icon_x,
             .y = icon_y + offset_y,
             .width = product_icon_size_dst,
@@ -155,7 +152,7 @@ void update_and_draw_products_shop() {
         auto text = ship.cargo.products[i].name;
         float text_y = dst.y;
         float text_x = dst.x + dst.width + 10.0;
-        rl::DrawText(text.c_str(), text_x, text_y, product_name_font_size, text_color);
+        DrawText(text.c_str(), text_x, text_y, product_name_font_size, text_color);
 
         // buy/sell n_units
         {
@@ -164,7 +161,7 @@ void update_and_draw_products_shop() {
             float offset_y = product_name_font_size + row_border;
 
             if (*diff_n_units > 0) {
-                rl::DrawText(
+                DrawText(
                     text.c_str(),
                     text_x,
                     text_y + offset_y,
@@ -172,7 +169,7 @@ void update_and_draw_products_shop() {
                     ui::color::TEXT_BUY
                 );
             } else if (*diff_n_units < 0) {
-                rl::DrawText(
+                DrawText(
                     text.c_str(),
                     text_x,
                     text_y + offset_y,
@@ -217,27 +214,27 @@ void update_and_draw_products_shop() {
 
     {
         auto text = "Product";
-        int text_width = rl::MeasureText(text, column_name_font_size);
+        int text_width = MeasureText(text, column_name_font_size);
         float text_x = mid_x - 0.5 * text_width;
-        rl::DrawText(text, text_x, text_y, column_name_font_size, ui::color::LINE_LIGHT);
+        DrawText(text, text_x, text_y, column_name_font_size, ui::color::LINE_LIGHT);
     }
 
     {
         auto text = "Ship";
-        int text_width = rl::MeasureText(text, column_name_font_size);
+        int text_width = MeasureText(text, column_name_font_size);
         float col_right_x = mid_x - 0.5 * mid_col_width;
         float col_mid_x = 0.5 * (row_x + col_right_x);
         float text_x = col_mid_x - 0.5 * text_width;
-        rl::DrawText(text, text_x, text_y, column_name_font_size, ui::color::LINE_LIGHT);
+        DrawText(text, text_x, text_y, column_name_font_size, ui::color::LINE_LIGHT);
     }
 
     {
         auto text = "Port";
-        int text_width = rl::MeasureText(text, column_name_font_size);
+        int text_width = MeasureText(text, column_name_font_size);
         float col_left_x = mid_x + 0.5 * mid_col_width;
         float col_mid_x = 0.5 * (row_x + row_width + col_left_x);
         float text_x = col_mid_x - 0.5 * text_width;
-        rl::DrawText(text, text_x, text_y, column_name_font_size, ui::color::LINE_LIGHT);
+        DrawText(text, text_x, text_y, column_name_font_size, ui::color::LINE_LIGHT);
     }
 
     // column vertical lines
@@ -246,12 +243,12 @@ void update_and_draw_products_shop() {
 
     {
         float line_x = mid_x - 0.5 * mid_col_width;
-        rl::DrawLine(line_x, line_top_y, line_x, line_bot_y, ui::color::LINE_MILD);
+        DrawLine(line_x, line_top_y, line_x, line_bot_y, ui::color::LINE_MILD);
     }
 
     {
         float line_x = mid_x + 0.5 * mid_col_width;
-        rl::DrawLine(line_x, line_top_y, line_x, line_bot_y, ui::color::LINE_MILD);
+        DrawLine(line_x, line_top_y, line_x, line_bot_y, ui::color::LINE_MILD);
     }
 }
 #endif
