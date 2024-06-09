@@ -134,7 +134,9 @@ void update_dynamic_bodies() {
 
 void update_window_should_close() {
     bool is_alt_f4_pressed = IsKeyDown(KEY_LEFT_ALT) && IsKeyPressed(KEY_F4);
-    WINDOW_SHOULD_CLOSE = (WindowShouldClose() || is_alt_f4_pressed);
+    bool is_escape_pressed = IsKeyPressed(KEY_ESCAPE);
+    WINDOW_SHOULD_CLOSE = (WindowShouldClose() || is_alt_f4_pressed)
+                          && !is_escape_pressed;
 }
 
 void update() {

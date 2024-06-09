@@ -40,7 +40,7 @@ bool check_if_opened() {
     return IS_OPENED;
 }
 
-const static float BORDER = 5.0;
+const static float BORDER = 3.0;
 const static float PAD = 5.0;
 const static float GAP = 5.0;
 const static int LARGE_FONT_SIZE = 30;
@@ -211,6 +211,22 @@ RectangleSplit2 split_left_and_draw_mid(
     return {.rect0 = split.rect0, .rect1 = split.rect2};
 }
 
+float get_col_width(int col_idx, float full_width) {
+    static const int n_cols = 5;
+    static const int product_col_idx = 2;
+    static const float product_col_scale = 1.8;
+
+    float col_width = (full_width - BORDER * (n_cols - 1)) / n_cols;
+
+    if (col_idx == product_col_idx) {
+        col_width *= product_col_scale;
+    } else {
+        col_width -= col_width * (product_col_scale - 1.0) / (n_cols - 1);
+    }
+
+    return col_width;
+}
+
 void draw_header(Rectangle rect) {
     static const int n_cols = 5;
     static std::array<std::string, n_cols> col_names = {
@@ -221,10 +237,10 @@ void draw_header(Rectangle rect) {
         "Port",
     };
 
-    float col_width = (rect.width - BORDER * (n_cols - 1)) / n_cols;
-    int font_size = LARGE_FONT_SIZE;
-
-    for (auto text : col_names) {
+    float full_width = rect.width;
+    for (int i = 0; i < n_cols; ++i) {
+        float col_width = get_col_width(i, full_width);
+        auto text = col_names[i];
         RectangleSplit2 split = split_left_and_draw_mid(
             rect, col_width, BORDER, ui::color::BORDER
         );
@@ -237,7 +253,6 @@ void draw_header(Rectangle rect) {
 
 void draw_row(Rectangle rect, int row_idx) {
     static const int n_cols = 5;
-    float col_width = (rect.width - BORDER * (n_cols - 1)) / n_cols;
 
     int font_size = MEDIUM_FONT_SIZE;
 
@@ -248,7 +263,9 @@ void draw_row(Rectangle rect, int row_idx) {
         text_color = ui::color::TEXT_MILD;
     }
 
+    float full_width = rect.width;
     for (int i = 0; i < n_cols; ++i) {
+        float col_width = get_col_width(i, full_width);
         RectangleSplit2 split = split_left_and_draw_mid(
             rect, col_width, BORDER, ui::color::BORDER
         );
@@ -261,25 +278,28 @@ void draw_row(Rectangle rect, int row_idx) {
         switch (i) {
             case 0: {  // ship amount
                 text = std::to_string(ship_product->n_units);
+                draw_text_in_rect(cell_rect, text, font_size, text_color);
                 break;
             }
             case 1:  // sell price
                 text = "sell price";
+                draw_text_in_rect(cell_rect, text, font_size, text_color);
                 break;
             case 2: {  // product
                 text = ship_product->name;
+                draw_text_in_rect(cell_rect, text, font_size, text_color);
                 break;
             }
             case 3:  // buy price
                 text = "buy price";
+                draw_text_in_rect(cell_rect, text, font_size, text_color);
                 break;
             case 4: {  // port amount
                 text = std::to_string(port_product->n_units);
+                draw_text_in_rect(cell_rect, text, font_size, text_color);
                 break;
             }
         }
-
-        draw_text_in_rect(cell_rect, text, font_size, text_color);
     }
 }
 
@@ -287,7 +307,6 @@ void draw_rows(Rectangle rect) {
     static const int n_rows = cargo::N_PRODUCTS;
 
     float row_height = (rect.height - BORDER * (n_rows - 1)) / n_rows;
-    int font_size = MEDIUM_FONT_SIZE;
 
     for (int i = 0; i < n_rows; ++i) {
         RectangleSplit2 split = split_top_and_draw_mid(
