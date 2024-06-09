@@ -11,6 +11,9 @@ const Color LINE_LIGHT = {245, 245, 245, 255};
 const Color LINE_MILD = {150, 150, 150, 255};
 const Color LINE_DARK = {10, 10, 10, 255};
 
+// border
+const Color BORDER = {30, 10, 5, 255};
+
 // rect
 const Color RECT_COLD = {70, 50, 30, 255};
 const Color RECT_HOVER = {110, 90, 70, 255};
