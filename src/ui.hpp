@@ -19,17 +19,17 @@ const Color RECT_COLD = {70, 50, 30, 255};
 const Color RECT_HOVER = {110, 90, 70, 255};
 
 // sprite tints
-const Color SPRITE_COLD = {90, 70, 50, 255};
-const Color SPRITE_HOVER = {110, 90, 70, 255};
-const Color SPRITE_DOWN = {245, 245, 245, 255};
-const Color SPRITE_SELECTED = {245, 245, 245, 255};
+const Color SPRITE_COLD = {150, 150, 150, 255};
+const Color SPRITE_HOVER = {200, 200, 200, 255};
+const Color SPRITE_DOWN = {255, 255, 255, 255};
+const Color SPRITE_SELECTED = {255, 255, 255, 255};
 
 // text
 const Color TEXT_LIGHT = {245, 245, 245, 255};
 const Color TEXT_MILD = {150, 150, 150, 255};
 const Color TEXT_DARK = {10, 10, 10, 255};
-const Color TEXT_BUY = {50, 255, 50, 255};
-const Color TEXT_SELL = {255, 50, 50, 255};
+const Color TEXT_SELL = {50, 255, 50, 255};
+const Color TEXT_BUY = {255, 50, 50, 255};
 
 // button
 const Color BUTTON_COLD = {90, 70, 50, 255};
@@ -49,8 +49,10 @@ const Color INCREMENT_BUTTON_DOWN = {140, 120, 100, 255};
 }  // namespace color
 
 enum class SpriteName {
-    RIGHT_ARROW_ICON_SRC,
-    LEFT_ARROW_ICON_SRC,
+    RIGHT_ARROW_ICON,
+    LEFT_ARROW_ICON,
+    ACCEPT_ICON,
+    CANCEL_ICON,
 };
 
 void load();

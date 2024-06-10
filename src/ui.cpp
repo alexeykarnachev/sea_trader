@@ -9,10 +9,14 @@ namespace ui {
 // sprite src
 Rectangle get_sprite_src(SpriteName sprite_name) {
     switch (sprite_name) {
-        case SpriteName::LEFT_ARROW_ICON_SRC:
+        case SpriteName::LEFT_ARROW_ICON:
             return {.x = 0.0, .y = 0.0, .width = -32.0, .height = 32.0};
-        case SpriteName::RIGHT_ARROW_ICON_SRC:
+        case SpriteName::RIGHT_ARROW_ICON:
             return {.x = 0.0, .y = 0.0, .width = 32.0, .height = 32.0};
+        case SpriteName::ACCEPT_ICON:
+            return {.x = 32.0, .y = 0.0, .width = 32.0, .height = 32.0};
+        case SpriteName::CANCEL_ICON:
+            return {.x = 64.0, .y = 0.0, .width = 32.0, .height = 32.0};
         default: return {.x = 0.0, .y = 0.0, .width = -32.0, .height = 32.0};
     }
 }

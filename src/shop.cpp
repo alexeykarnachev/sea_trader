@@ -6,6 +6,7 @@
 #include "raylib/raylib.h"
 #include "registry.hpp"
 #include "ui.hpp"
+#include <algorithm>
 #include <array>
 #include <cstdio>
 #include <string>
@@ -43,12 +44,18 @@ const static float PAD = 5.0;
 const static float GAP = 5.0;
 const static int LARGE_FONT_SIZE = 30;
 const static int MEDIUM_FONT_SIZE = 25;
+const static int SMALL_FONT_SIZE = 20;
 
 const static float WINDOW_WIDTH = 1200.0;
 const static float WINDOW_HEIGHT = 900.0;
 
 const static float HEADER_HEIGHT = 50;
 const static float FOOTER_HEIGHT = 100;
+
+const static float TRADE_BUTTON_WIDTH = 150.0;
+const static float TRADE_BUTTON_HEIGHT = 50.0;
+
+const static float FINAL_BUTTONS_CLOTHENESS = 0.2;
 
 enum class Pivot {
     MID_MID,
@@ -69,6 +76,24 @@ Rectangle normalize_rect(Rectangle rect, Pivot pivot) {
     }
 
     return rect;
+}
+
+Rectangle get_middle_square(Rectangle rect, float pad) {
+    float size = std::min(rect.width, rect.height) - 2.0 * pad;
+
+    Vector2 center = {
+        .x = rect.x + 0.5f * rect.width,
+        .y = rect.y + 0.5f * rect.height,
+    };
+
+    Rectangle square = {
+        .x = center.x - 0.5f * size,
+        .y = center.y - 0.5f * size,
+        .width = size,
+        .height = size,
+    };
+
+    return square;
 }
 
 Vector2 get_text_top_left(
@@ -209,6 +234,10 @@ RectangleSplit2 split_left_and_draw_mid(
     return {.rect0 = split.rect0, .rect1 = split.rect2};
 }
 
+RectangleSplit2 split_left_and_draw_border(Rectangle rect, float left_size) {
+    return split_left_and_draw_mid(rect, left_size, BORDER, ui::color::BORDER);
+}
+
 float get_col_width(int col_idx, float full_width) {
     static const int n_cols = 5;
     static const int product_col_idx = 2;
@@ -239,9 +268,7 @@ void draw_header(Rectangle rect) {
     for (int i = 0; i < n_cols; ++i) {
         float col_width = get_col_width(i, full_width);
         auto text = col_names[i];
-        RectangleSplit2 split = split_left_and_draw_mid(
-            rect, col_width, BORDER, ui::color::BORDER
-        );
+        RectangleSplit2 split = split_left_and_draw_border(rect, col_width);
         rect = split.rect1;
 
         DrawRectangleRec(split.rect0, ui::color::RECT_COLD);
@@ -264,9 +291,7 @@ void draw_row(Rectangle rect, int row_idx) {
     float full_width = rect.width;
     for (int i = 0; i < n_cols; ++i) {
         float col_width = get_col_width(i, full_width);
-        RectangleSplit2 split = split_left_and_draw_mid(
-            rect, col_width, BORDER, ui::color::BORDER
-        );
+        RectangleSplit2 split = split_left_and_draw_border(rect, col_width);
         Rectangle cell_rect = split.rect0;
         rect = split.rect1;
 
@@ -282,7 +307,7 @@ void draw_row(Rectangle rect, int row_idx) {
                 break;
             }
             case 1:  // sell price
-                text = "sell price";
+                text = std::to_string(row_idx);
                 draw_text_in_rect(cell_rect, text, font_size, text_color);
                 break;
             case 2: {  // product
@@ -295,11 +320,11 @@ void draw_row(Rectangle rect, int row_idx) {
                         .height = icon_size,
                     };
 
-                    auto sprite = ui::SpriteName::LEFT_ARROW_ICON_SRC;
+                    auto sprite = ui::SpriteName::LEFT_ARROW_ICON;
                     ui::increment_button_sprite(sprite, dst, diff_n_units, +1, 0, 100);
 
                     dst.x = cell_rect.x + cell_rect.width - PAD - icon_size;
-                    sprite = ui::SpriteName::RIGHT_ARROW_ICON_SRC;
+                    sprite = ui::SpriteName::RIGHT_ARROW_ICON;
                     ui::increment_button_sprite(sprite, dst, diff_n_units, -1, 0, 100);
                 }
 
@@ -308,7 +333,7 @@ void draw_row(Rectangle rect, int row_idx) {
                 break;
             }
             case 3:  // buy price
-                text = "buy price";
+                text = std::to_string(row_idx);
                 draw_text_in_rect(cell_rect, text, font_size, text_color);
                 break;
             case 4: {  // port amount
@@ -337,8 +362,66 @@ void draw_rows(Rectangle rect) {
     }
 }
 
+void draw_stats_cell(Rectangle rect, bool is_ship) {
+    auto cargo = is_ship ? SHIP_CARGO : PORT_CARGO;
+    auto who = is_ship ? "Ship" : "Port";
+
+    float row_height = rect.height / 3.0;
+    DrawRectangleRec(rect, ui::color::RECT_COLD);
+
+    RectangleSplit3 split = split_top(rect, row_height, 0.0);
+    Rectangle who_rect = split.rect0;
+    rect = split.rect2;
+
+    split = split_top(rect, row_height, 0.0);
+    Rectangle cap_rect = split.rect0;
+    Rectangle gold_rect = split.rect2;
+
+    draw_text_in_rect(who_rect, who, MEDIUM_FONT_SIZE, ui::color::TEXT_LIGHT);
+    draw_text_in_rect(
+        cap_rect, "Capacity: 228 / 1488", SMALL_FONT_SIZE, ui::color::TEXT_MILD
+    );
+    draw_text_in_rect(gold_rect, "Gold: 1422888", SMALL_FONT_SIZE, ui::color::TEXT_MILD);
+}
+
+void draw_buttons_cell(Rectangle rect) {
+    DrawRectangleRec(rect, ui::color::RECT_COLD);
+
+    float row_height = rect.height / 2.0;
+    RectangleSplit3 split = split_top(rect, row_height, 0.0);
+
+    Rectangle summary_rect = split.rect0;
+    Rectangle buttons_rect = split.rect2;
+    buttons_rect.x += buttons_rect.width * FINAL_BUTTONS_CLOTHENESS;
+    buttons_rect.width -= buttons_rect.width * 2.0 * FINAL_BUTTONS_CLOTHENESS;
+
+    split = split_left(buttons_rect, 0.5 * buttons_rect.width, 0.0);
+    Rectangle accept_button_rect = get_middle_square(split.rect0, PAD);
+    Rectangle cancel_button_rect = get_middle_square(split.rect2, PAD);
+
+    draw_text_in_rect(
+        summary_rect, "Total: -6969 GOLD", LARGE_FONT_SIZE, ui::color::TEXT_BUY
+    );
+    ui::button_sprite(ui::SpriteName::ACCEPT_ICON, accept_button_rect);
+    ui::button_sprite(ui::SpriteName::CANCEL_ICON, cancel_button_rect);
+}
+
 void draw_footer(Rectangle rect) {
-    DrawRectangleRec(rect, BLUE);
+    float full_width = rect.width;
+
+    float col_width = get_col_width(0, full_width);
+    RectangleSplit2 split = split_left_and_draw_border(rect, 2.0 * col_width + BORDER);
+    Rectangle ship_rect = split.rect0;
+    rect = split.rect1;
+
+    col_width = get_col_width(2, full_width);
+    split = split_left_and_draw_border(rect, col_width);
+    Rectangle buttons_rect = split.rect0;
+    Rectangle port_rect = split.rect1;
+
+    draw_stats_cell(ship_rect, true);
+    draw_stats_cell(port_rect, false);
+    draw_buttons_cell(buttons_rect);
 }
 
 void update_and_draw() {
