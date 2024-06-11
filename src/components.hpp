@@ -25,6 +25,8 @@ public:
 class Ship {
 public:
     cargo::Cargo cargo;
+
+    Ship();
 };
 
 class Player {};

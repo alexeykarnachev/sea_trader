@@ -27,7 +27,7 @@ void open(entt::entity port_entity) {
 
     SHIP_CARGO = &ship.cargo;
     PORT_CARGO = &port.cargo;
-    DIFF_CARGO.reset();
+    DIFF_CARGO.empty();
     IS_OPENED = true;
 }
 
@@ -306,10 +306,12 @@ void draw_row(Rectangle rect, int row_idx) {
                 draw_text_in_rect(cell_rect, text, font_size, text_color);
                 break;
             }
-            case 1:  // sell price
-                text = std::to_string(row_idx);
+            case 1: {  // ship sell price (port buy price)
+                int port_buy_price = port_product->get_sell_price();
+                text = std::to_string(port_buy_price);
                 draw_text_in_rect(cell_rect, text, font_size, text_color);
                 break;
+            }
             case 2: {  // product
                 if (SELECTED_PRODUCT_IDX == row_idx) {
                     float icon_size = cell_rect.height - 2.0 * PAD;
@@ -332,10 +334,12 @@ void draw_row(Rectangle rect, int row_idx) {
                 draw_text_in_rect(cell_rect, text, font_size, text_color);
                 break;
             }
-            case 3:  // buy price
-                text = std::to_string(row_idx);
+            case 3: {  // ship buy price (port sell price)
+                int port_sell_price = port_product->get_sell_price();
+                text = std::to_string(port_sell_price);
                 draw_text_in_rect(cell_rect, text, font_size, text_color);
                 break;
+            }
             case 4: {  // port amount
                 int port_n_units = port_product->n_units - (*diff_n_units);
                 text = std::to_string(port_n_units);
@@ -363,9 +367,6 @@ void draw_rows(Rectangle rect) {
 }
 
 void draw_stats_cell(Rectangle rect, bool is_ship) {
-    auto cargo = is_ship ? SHIP_CARGO : PORT_CARGO;
-    auto who = is_ship ? "Ship" : "Port";
-
     float row_height = rect.height / 3.0;
     DrawRectangleRec(rect, ui::color::RECT_COLD);
 
@@ -377,10 +378,18 @@ void draw_stats_cell(Rectangle rect, bool is_ship) {
     Rectangle cap_rect = split.rect0;
     Rectangle gold_rect = split.rect2;
 
+    // who
+    auto who = is_ship ? "Ship" : "Port";
     draw_text_in_rect(who_rect, who, MEDIUM_FONT_SIZE, ui::color::TEXT_LIGHT);
-    draw_text_in_rect(
-        cap_rect, "Capacity: 228 / 1488", SMALL_FONT_SIZE, ui::color::TEXT_MILD
-    );
+
+    // capacity
+    auto cargo = is_ship ? SHIP_CARGO : PORT_CARGO;
+    auto weight_str = std::to_string(cargo->get_weight());
+    auto capacity_str = std::to_string(cargo->capacity);
+    capacity_str = "Capacity: " + weight_str + " / " + capacity_str;
+    draw_text_in_rect(cap_rect, capacity_str, SMALL_FONT_SIZE, ui::color::TEXT_MILD);
+
+    // gold
     draw_text_in_rect(gold_rect, "Gold: 1422888", SMALL_FONT_SIZE, ui::color::TEXT_MILD);
 }
 
