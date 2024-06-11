@@ -8,6 +8,7 @@
 #include "ui.hpp"
 #include <algorithm>
 #include <array>
+#include <climits>
 #include <cstdio>
 #include <string>
 
@@ -288,6 +289,7 @@ void draw_row(Rectangle rect, int row_idx) {
         text_color = ui::color::TEXT_MILD;
     }
 
+    int ship_free_weight = SHIP_CARGO->get_free_weight() - DIFF_CARGO.get_weight();
     float full_width = rect.width;
     for (int i = 0; i < n_cols; ++i) {
         float col_width = get_col_width(i, full_width);
@@ -298,10 +300,10 @@ void draw_row(Rectangle rect, int row_idx) {
         std::string text;
         auto ship_product = &SHIP_CARGO->products[row_idx];
         auto port_product = &PORT_CARGO->products[row_idx];
-        int *diff_n_units = &DIFF_CARGO.products[row_idx].n_units;
+        int *diff_n_units_p = &DIFF_CARGO.products[row_idx].n_units;
         switch (i) {
             case 0: {  // ship amount
-                int ship_n_units = ship_product->n_units + (*diff_n_units);
+                int ship_n_units = ship_product->n_units + (*diff_n_units_p);
                 text = std::to_string(ship_n_units);
                 draw_text_in_rect(cell_rect, text, font_size, text_color);
                 break;
@@ -322,12 +324,38 @@ void draw_row(Rectangle rect, int row_idx) {
                         .height = icon_size,
                     };
 
-                    auto sprite = ui::SpriteName::LEFT_ARROW_ICON;
-                    ui::increment_button_sprite(sprite, dst, diff_n_units, +1, 0, 100);
+                    int speed;
+                    if (IsKeyDown(KEY_LEFT_CONTROL)) {
+                        speed = 10;
+                    } else if (IsKeyDown(KEY_LEFT_SHIFT)) {
+                        speed = port_product->n_units + ship_product->n_units;
+                    } else {
+                        speed = 1;
+                    }
 
+                    // buy
+                    int ship_max_n_buy = ship_free_weight / port_product->unit_weight;
+                    ship_max_n_buy = std::min(ship_max_n_buy, port_product->n_units);
+                    ship_max_n_buy += *diff_n_units_p;
+                    ui::increment_button_sprite(
+                        ui::SpriteName::LEFT_ARROW_ICON,
+                        dst,
+                        diff_n_units_p,
+                        +speed,
+                        *diff_n_units_p,
+                        ship_max_n_buy
+                    );
+
+                    // sell
                     dst.x = cell_rect.x + cell_rect.width - PAD - icon_size;
-                    sprite = ui::SpriteName::RIGHT_ARROW_ICON;
-                    ui::increment_button_sprite(sprite, dst, diff_n_units, -1, 0, 100);
+                    ui::increment_button_sprite(
+                        ui::SpriteName::RIGHT_ARROW_ICON,
+                        dst,
+                        diff_n_units_p,
+                        -speed,
+                        -ship_product->n_units,
+                        *diff_n_units_p
+                    );
                 }
 
                 text = ship_product->name;
@@ -341,7 +369,7 @@ void draw_row(Rectangle rect, int row_idx) {
                 break;
             }
             case 4: {  // port amount
-                int port_n_units = port_product->n_units - (*diff_n_units);
+                int port_n_units = port_product->n_units - (*diff_n_units_p);
                 text = std::to_string(port_n_units);
                 draw_text_in_rect(cell_rect, text, font_size, text_color);
                 break;
@@ -384,13 +412,14 @@ void draw_stats_cell(Rectangle rect, bool is_ship) {
 
     // capacity
     auto cargo = is_ship ? SHIP_CARGO : PORT_CARGO;
-    auto weight_str = std::to_string(cargo->get_weight());
+    int weight = cargo->get_weight() + DIFF_CARGO.get_weight();
+    auto weight_str = std::to_string(weight);
     auto capacity_str = std::to_string(cargo->capacity);
     capacity_str = "Capacity: " + weight_str + " / " + capacity_str;
     draw_text_in_rect(cap_rect, capacity_str, SMALL_FONT_SIZE, ui::color::TEXT_MILD);
 
     // gold
-    draw_text_in_rect(gold_rect, "Gold: 1422888", SMALL_FONT_SIZE, ui::color::TEXT_MILD);
+    draw_text_in_rect(gold_rect, "Money: 1422888", SMALL_FONT_SIZE, ui::color::TEXT_MILD);
 }
 
 void draw_buttons_cell(Rectangle rect) {
@@ -409,7 +438,7 @@ void draw_buttons_cell(Rectangle rect) {
     Rectangle cancel_button_rect = get_middle_square(split.rect2, PAD);
 
     draw_text_in_rect(
-        summary_rect, "Total: -6969 GOLD", LARGE_FONT_SIZE, ui::color::TEXT_BUY
+        summary_rect, "Total: -6969 MONEY", LARGE_FONT_SIZE, ui::color::TEXT_BUY
     );
     ui::button_sprite(ui::SpriteName::ACCEPT_ICON, accept_button_rect);
     ui::button_sprite(ui::SpriteName::CANCEL_ICON, cancel_button_rect);

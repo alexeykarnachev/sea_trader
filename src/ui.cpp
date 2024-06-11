@@ -1,6 +1,7 @@
 #include "./ui.hpp"
 
 #include "raylib/raylib.h"
+#include <algorithm>
 #include <cstdio>
 
 namespace st {
@@ -140,14 +141,18 @@ public:
             this->color = color::INCREMENT_BUTTON_DOWN;
             this->tint = color::SPRITE_DOWN;
 
+            int new_value = *value;
             double time = GetTime();
             if (last_increment_time <= 0.0) {
                 last_increment_time = time + long_increment_period;
-                *value += speed;
+                new_value += speed;
             } else if (time - last_increment_time >= 0.0) {
                 last_increment_time = time + short_increment_period;
-                *value += speed;
+                new_value += speed;
             }
+
+            new_value = std::clamp(new_value, min, max);
+            *value = new_value;
         } else if (is_hover) {
             this->state = IncrementButtonState::HOVER;
             this->color = color::INCREMENT_BUTTON_HOVER;

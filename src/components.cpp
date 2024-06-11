@@ -11,10 +11,10 @@ Transform::Transform(Vector2 position, float rotation)
 
 Port::Port(float radius)
     : radius(radius)
-    , cargo(cargo::Cargo(100000)) {}
+    , cargo(cargo::create_port_preset()) {}
 
 Ship::Ship()
-    : cargo(cargo::Cargo(1000)) {}
+    : cargo(cargo::create_ship_preset()) {}
 
 }  // namespace components
 }  // namespace st

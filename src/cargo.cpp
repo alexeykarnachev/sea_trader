@@ -18,10 +18,6 @@ static const std::array<Product, N_PRODUCTS> PRODUCTS = {
      {.name = "Gold", .unit_weight = 50, .base_price = 1000}}
 };
 
-void Product::empty() {
-    this->n_units = 0;
-}
-
 int Product::get_buy_price() {
     return this->buy_price_coeff * this->base_price;
 }
@@ -41,9 +37,13 @@ Cargo::Cargo(int capacity)
     : products(PRODUCTS)
     , capacity(capacity) {}
 
+Product &Cargo::get_product(ProductIDX idx) {
+    return this->products[(int)idx];
+}
+
 void Cargo::empty() {
     for (auto &product : this->products) {
-        product.empty();
+        product.n_units = 0;
     }
 }
 
@@ -54,6 +54,32 @@ int Cargo::get_weight() {
     }
 
     return weight;
+}
+
+int Cargo::get_free_weight() {
+    int weight = this->get_weight();
+    int free_weight = this->capacity - weight;
+    return free_weight;
+}
+
+Cargo create_ship_preset() {
+    Cargo cargo(1000);
+    cargo.get_product(ProductIDX::PROVISION_IDX).n_units = 30;
+    cargo.get_product(ProductIDX::RUM_IDX).n_units = 10;
+    cargo.get_product(ProductIDX::WOOD_IDX).n_units = 5;
+
+    return cargo;
+}
+
+Cargo create_port_preset() {
+    Cargo cargo(1000000);
+    cargo.get_product(ProductIDX::PROVISION_IDX).n_units = 1000;
+    cargo.get_product(ProductIDX::RUM_IDX).n_units = 1000;
+    cargo.get_product(ProductIDX::WOOD_IDX).n_units = 500;
+    cargo.get_product(ProductIDX::SILVER_IDX).n_units = 50;
+    cargo.get_product(ProductIDX::GOLD_IDX).n_units = 25;
+
+    return cargo;
 }
 
 }  // namespace cargo
