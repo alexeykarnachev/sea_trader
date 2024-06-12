@@ -26,13 +26,14 @@ void open(entt::entity port_entity) {
     auto &ship = registry::registry.get<components::Ship>(player_entity);
     auto &port = registry::registry.get<components::Port>(port_entity);
 
-    // SHIP_CARGO_ORIG = ship.cargo;
+    SHIP_CARGO_ORIG = ship.cargo;
     SHIP_CARGO = &ship.cargo;
     PORT_CARGO = &port.cargo;
     IS_OPENED = true;
 }
 
-void close() {
+void close(bool accept_deal) {
+    if (!accept_deal) *SHIP_CARGO = SHIP_CARGO_ORIG;
     IS_OPENED = false;
 }
 
@@ -349,19 +350,11 @@ void draw_row(Rectangle rect, int row_idx) {
                     int port_max_n_buy = PORT_CARGO->get_free_weight()
                                          / port_product->unit_weight;
                     port_max_n_buy = std::min(port_max_n_buy, ship_product->n_units);
-                    port_max_n_buy = std::min(port_want_n_buy, port_max_n_buy);
-
-                    printf(
-                        "ship want buy: %d, port want buy: %d\n",
-                        ship_want_n_buy,
-                        port_want_n_buy
-                    );
+                    port_want_n_buy = std::min(port_max_n_buy, port_want_n_buy);
 
                     // apply changes
-                    ship_product->n_units += ship_want_n_buy;
-                    port_product->n_units -= ship_want_n_buy;
-                    ship_product->n_units -= port_want_n_buy;
-                    port_product->n_units += port_want_n_buy;
+                    ship_product->n_units += ship_want_n_buy - port_want_n_buy;
+                    port_product->n_units += port_want_n_buy - ship_want_n_buy;
                 }
 
                 text = ship_product->get_name();
@@ -444,8 +437,11 @@ void draw_buttons_cell(Rectangle rect) {
     draw_text_in_rect(
         summary_rect, "Total: -6969 MONEY", LARGE_FONT_SIZE, ui::color::TEXT_BUY
     );
-    ui::button_sprite(ui::SpriteName::ACCEPT_ICON, accept_button_rect);
-    ui::button_sprite(ui::SpriteName::CANCEL_ICON, cancel_button_rect);
+
+    bool is_accept = ui::button_sprite(ui::SpriteName::ACCEPT_ICON, accept_button_rect);
+    bool is_cancel = ui::button_sprite(ui::SpriteName::CANCEL_ICON, cancel_button_rect);
+    if (is_accept) close(true);
+    else if (is_cancel) close(false);
 }
 
 void draw_footer(Rectangle rect) {
@@ -470,7 +466,7 @@ void update_and_draw() {
     if (!IS_OPENED) return;
 
     if (IsKeyPressed(KEY_ESCAPE)) {
-        close();
+        close(false);
         return;
     }
 
