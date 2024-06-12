@@ -20,11 +20,16 @@ static bool IS_OPENED = false;
 static cargo::Cargo SHIP_CARGO_ORIG;
 static cargo::Cargo *SHIP_CARGO;
 static cargo::Cargo *PORT_CARGO;
+static components::Money *SHIP_MONEY;
+static components::Money *PORT_MONEY;
 
 void open(entt::entity port_entity) {
     auto player_entity = registry::registry.view<components::Player>().front();
     auto &ship = registry::registry.get<components::Ship>(player_entity);
     auto &port = registry::registry.get<components::Port>(port_entity);
+
+    SHIP_MONEY = &registry::registry.get<components::Money>(player_entity);
+    PORT_MONEY = &registry::registry.get<components::Money>(port_entity);
 
     SHIP_CARGO_ORIG = ship.cargo;
     SHIP_CARGO = &ship.cargo;
@@ -393,6 +398,10 @@ void draw_rows(Rectangle rect) {
 }
 
 void draw_stats_cell(Rectangle rect, bool is_ship) {
+    auto who = is_ship ? "Ship" : "Port";
+    auto cargo = is_ship ? SHIP_CARGO : PORT_CARGO;
+    auto money = is_ship ? SHIP_MONEY : PORT_MONEY;
+
     float row_height = rect.height / 3.0;
     DrawRectangleRec(rect, ui::color::RECT_COLD);
 
@@ -405,18 +414,17 @@ void draw_stats_cell(Rectangle rect, bool is_ship) {
     Rectangle gold_rect = split.rect2;
 
     // who
-    auto who = is_ship ? "Ship" : "Port";
     draw_text_in_rect(who_rect, who, MEDIUM_FONT_SIZE, ui::color::TEXT_LIGHT);
 
     // capacity
-    auto cargo = is_ship ? SHIP_CARGO : PORT_CARGO;
     auto weight_str = std::to_string(cargo->get_weight());
     auto capacity_str = std::to_string(cargo->capacity);
     capacity_str = "Capacity: " + weight_str + " / " + capacity_str;
     draw_text_in_rect(cap_rect, capacity_str, SMALL_FONT_SIZE, ui::color::TEXT_MILD);
 
-    // gold
-    draw_text_in_rect(gold_rect, "Money: 1422888", SMALL_FONT_SIZE, ui::color::TEXT_MILD);
+    // money
+    auto money_str = std::to_string(money->value) + " $";
+    draw_text_in_rect(gold_rect, money_str, SMALL_FONT_SIZE, ui::color::TEXT_MILD);
 }
 
 void draw_buttons_cell(Rectangle rect) {

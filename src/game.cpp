@@ -1,6 +1,7 @@
 #include "game.hpp"
 
 #include "camera.hpp"
+#include "cargo.hpp"
 #include "components.hpp"
 #include "dynamic_body.hpp"
 #include "entt/entity/fwd.hpp"
@@ -30,16 +31,18 @@ entt::entity create_ship(
     auto entity = registry::registry.create();
     registry::registry.emplace<components::Transform>(entity, transform);
     registry::registry.emplace<dynamic_body::DynamicBody>(entity, dynamic_body);
-    registry::registry.emplace<components::Ship>(entity);
+    registry::registry.emplace<components::Ship>(entity, cargo::create_ship_preset());
 
     return entity;
 }
 
-entt::entity create_player_ship(
-    components::Transform transform, dynamic_body::DynamicBody dynamic_body
-) {
-    auto entity = create_ship(transform, dynamic_body);
+entt::entity create_player(Vector2 position) {
+    components::Transform transform(position, 0.0);
+    auto body = dynamic_body::create_ship_preset();
+
+    auto entity = create_ship(transform, body);
     registry::registry.emplace<components::Player>(entity);
+    registry::registry.emplace<components::Money>(entity, 1000);
 
     return entity;
 }
@@ -48,6 +51,7 @@ entt::entity create_port(components::Transform transform, components::Port port)
     auto entity = registry::registry.create();
     registry::registry.emplace<components::Transform>(entity, transform);
     registry::registry.emplace<components::Port>(entity, port);
+    registry::registry.emplace<components::Money>(entity, 500000);
 
     return entity;
 }
@@ -221,9 +225,7 @@ void load() {
         Vector2 position = terrain_center;
         position.x -= 8.0;
         position.y -= 10.0;
-        components::Transform transform(position, 0.0);
-        auto body = dynamic_body::create_ship_preset();
-        create_player_ship(transform, body);
+        create_player(position);
     }
 
     // ---------------------------------------------------------------
@@ -258,7 +260,7 @@ void load() {
                     int idx = std::rand() % n;
                     Vector2 position = candidates[idx];
                     components::Transform transform(position, 0.0);
-                    components::Port port(3.0);
+                    components::Port port(3.0, cargo::create_port_preset());
                     create_port(transform, port);
                 }
             }

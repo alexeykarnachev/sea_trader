@@ -9,12 +9,15 @@ Transform::Transform(Vector2 position, float rotation)
     : position(position)
     , rotation(rotation) {}
 
-Port::Port(float radius)
+Port::Port(float radius, cargo::Cargo cargo)
     : radius(radius)
-    , cargo(cargo::create_port_preset()) {}
+    , cargo(cargo) {}
 
-Ship::Ship()
-    : cargo(cargo::create_ship_preset()) {}
+Ship::Ship(cargo::Cargo cargo)
+    : cargo(cargo) {}
+
+Money::Money(int value)
+    : value(value) {}
 
 }  // namespace components
 }  // namespace st

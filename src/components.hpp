@@ -19,14 +19,21 @@ public:
     const float radius;
     cargo::Cargo cargo;
 
-    Port(float radius);
+    Port(float radius, cargo::Cargo);
 };
 
 class Ship {
 public:
     cargo::Cargo cargo;
 
-    Ship();
+    Ship(cargo::Cargo);
+};
+
+class Money {
+public:
+    int value;
+
+    Money(int value);
 };
 
 class Player {};
