@@ -79,7 +79,7 @@ bool radio_button_sprite(SpriteName sprite_name, Rectangle dst, int *store, int 
 bool radio_button_rect(Rectangle dst, int *store, int value);
 
 // -----------------------------------------------------------------------
-// increment button
+// increment button by reference
 bool increment_button_sprite(
     Texture texture, Rectangle src, Rectangle dst, int *value, int speed, int min, int max
 );
@@ -87,6 +87,12 @@ bool increment_button_sprite(
     SpriteName sprite_name, Rectangle dst, int *value, int speed, int min, int max
 );
 bool increment_button_rect(Rectangle dst, int *value, int speed, int min, int max);
-}  // namespace ui
 
+// -----------------------------------------------------------------------
+// return increment value
+int increment_button_sprite(Texture texture, Rectangle src, Rectangle dst, int speed);
+int increment_button_sprite(SpriteName sprite_name, Rectangle dst, int speed);
+int increment_button_rect(Rectangle dst, int speed);
+
+}  // namespace ui
 }  // namespace st

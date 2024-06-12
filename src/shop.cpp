@@ -17,7 +17,7 @@ namespace shop {
 
 static int SELECTED_PRODUCT_IDX = -1;
 static bool IS_OPENED = false;
-static cargo::Cargo DIFF_CARGO;
+static cargo::Cargo SHIP_CARGO_ORIG;
 static cargo::Cargo *SHIP_CARGO;
 static cargo::Cargo *PORT_CARGO;
 
@@ -26,9 +26,9 @@ void open(entt::entity port_entity) {
     auto &ship = registry::registry.get<components::Ship>(player_entity);
     auto &port = registry::registry.get<components::Port>(port_entity);
 
+    // SHIP_CARGO_ORIG = ship.cargo;
     SHIP_CARGO = &ship.cargo;
     PORT_CARGO = &port.cargo;
-    DIFF_CARGO.empty();
     IS_OPENED = true;
 }
 
@@ -289,7 +289,6 @@ void draw_row(Rectangle rect, int row_idx) {
         text_color = ui::color::TEXT_MILD;
     }
 
-    int ship_free_weight = SHIP_CARGO->get_free_weight() - DIFF_CARGO.get_weight();
     float full_width = rect.width;
     for (int i = 0; i < n_cols; ++i) {
         float col_width = get_col_width(i, full_width);
@@ -300,11 +299,9 @@ void draw_row(Rectangle rect, int row_idx) {
         std::string text;
         auto ship_product = &SHIP_CARGO->products[row_idx];
         auto port_product = &PORT_CARGO->products[row_idx];
-        int *diff_n_units_p = &DIFF_CARGO.products[row_idx].n_units;
         switch (i) {
             case 0: {  // ship amount
-                int ship_n_units = ship_product->n_units + (*diff_n_units_p);
-                text = std::to_string(ship_n_units);
+                text = std::to_string(ship_product->n_units);
                 draw_text_in_rect(cell_rect, text, font_size, text_color);
                 break;
             }
@@ -334,31 +331,40 @@ void draw_row(Rectangle rect, int row_idx) {
                     }
 
                     // buy
-                    int ship_max_n_buy = ship_free_weight / port_product->unit_weight;
-                    ship_max_n_buy = std::min(ship_max_n_buy, port_product->n_units);
-                    ship_max_n_buy += *diff_n_units_p;
-                    ui::increment_button_sprite(
-                        ui::SpriteName::LEFT_ARROW_ICON,
-                        dst,
-                        diff_n_units_p,
-                        +speed,
-                        *diff_n_units_p,
-                        ship_max_n_buy
+                    int ship_want_n_buy = ui::increment_button_sprite(
+                        ui::SpriteName::LEFT_ARROW_ICON, dst, speed
                     );
+
+                    int ship_max_n_buy = SHIP_CARGO->get_free_weight()
+                                         / port_product->unit_weight;
+                    ship_max_n_buy = std::min(ship_max_n_buy, port_product->n_units);
+                    ship_want_n_buy = std::min(ship_want_n_buy, ship_max_n_buy);
 
                     // sell
                     dst.x = cell_rect.x + cell_rect.width - PAD - icon_size;
-                    ui::increment_button_sprite(
-                        ui::SpriteName::RIGHT_ARROW_ICON,
-                        dst,
-                        diff_n_units_p,
-                        -speed,
-                        -ship_product->n_units,
-                        *diff_n_units_p
+                    int port_want_n_buy = ui::increment_button_sprite(
+                        ui::SpriteName::RIGHT_ARROW_ICON, dst, speed
                     );
+
+                    int port_max_n_buy = PORT_CARGO->get_free_weight()
+                                         / port_product->unit_weight;
+                    port_max_n_buy = std::min(port_max_n_buy, ship_product->n_units);
+                    port_max_n_buy = std::min(port_want_n_buy, port_max_n_buy);
+
+                    printf(
+                        "ship want buy: %d, port want buy: %d\n",
+                        ship_want_n_buy,
+                        port_want_n_buy
+                    );
+
+                    // apply changes
+                    ship_product->n_units += ship_want_n_buy;
+                    port_product->n_units -= ship_want_n_buy;
+                    ship_product->n_units -= port_want_n_buy;
+                    port_product->n_units += port_want_n_buy;
                 }
 
-                text = ship_product->name;
+                text = ship_product->get_name();
                 draw_text_in_rect(cell_rect, text, font_size, text_color);
                 break;
             }
@@ -369,8 +375,7 @@ void draw_row(Rectangle rect, int row_idx) {
                 break;
             }
             case 4: {  // port amount
-                int port_n_units = port_product->n_units - (*diff_n_units_p);
-                text = std::to_string(port_n_units);
+                text = std::to_string(port_product->n_units);
                 draw_text_in_rect(cell_rect, text, font_size, text_color);
                 break;
             }
@@ -412,8 +417,7 @@ void draw_stats_cell(Rectangle rect, bool is_ship) {
 
     // capacity
     auto cargo = is_ship ? SHIP_CARGO : PORT_CARGO;
-    int weight = cargo->get_weight() + DIFF_CARGO.get_weight();
-    auto weight_str = std::to_string(weight);
+    auto weight_str = std::to_string(cargo->get_weight());
     auto capacity_str = std::to_string(cargo->capacity);
     capacity_str = "Capacity: " + weight_str + " / " + capacity_str;
     draw_text_in_rect(cap_rect, capacity_str, SMALL_FONT_SIZE, ui::color::TEXT_MILD);

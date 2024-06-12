@@ -1,5 +1,6 @@
 #include "./ui.hpp"
 
+#include "limits.h"
 #include "raylib/raylib.h"
 #include <algorithm>
 #include <cstdio>
@@ -239,7 +240,7 @@ bool radio_button_rect(Rectangle dst, int *store, int value) {
 }
 
 // -----------------------------------------------------------------------
-// increment button
+// increment button by reference
 bool increment_button_sprite(
     Texture texture, Rectangle src, Rectangle dst, int *value, int speed, int min, int max
 ) {
@@ -248,6 +249,7 @@ bool increment_button_sprite(
     DrawTexturePro(texture, src, dst, {0.0, 0.0}, 0.0, btn.tint);
     return btn.as_bool();
 }
+
 bool increment_button_sprite(
     SpriteName sprite_name, Rectangle dst, int *value, int speed, int min, int max
 ) {
@@ -262,6 +264,28 @@ bool increment_button_rect(Rectangle dst, int *value, int speed, int min, int ma
     return btn.as_bool();
 }
 
-}  // namespace ui
+// -----------------------------------------------------------------------
+// return increment value
+int increment_button_sprite(Texture texture, Rectangle src, Rectangle dst, int speed) {
+    int value = 0;
+    IncrementButton btn(dst, &value, speed, -INT_MAX, INT_MAX);
 
+    DrawTexturePro(texture, src, dst, {0.0, 0.0}, 0.0, btn.tint);
+    return value;
+}
+
+int increment_button_sprite(SpriteName sprite_name, Rectangle dst, int speed) {
+    Rectangle src = get_sprite_src(sprite_name);
+    return increment_button_sprite(TEXTURE, src, dst, speed);
+}
+
+int increment_button_rect(Rectangle dst, int speed) {
+    int value = 0;
+    IncrementButton btn(dst, &value, speed, -INT_MAX, INT_MAX);
+
+    DrawRectangleRec(dst, btn.color);
+    return value;
+}
+
+}  // namespace ui
 }  // namespace st

@@ -2,31 +2,31 @@
 
 #include <array>
 #include <climits>
-#include <string>
 
 namespace st {
 namespace cargo {
 
-enum class ProductIDX {
-    PROVISION_IDX = 0,
-    SPICES_IDX,
-    SUGAR_IDX,
-    TEA_IDX,
-    TOBACCO_IDX,
-    RUM_IDX,
-    COTTON_IDX,
-    SILK_IDX,
-    GRAIN_IDX,
-    WOOD_IDX,
-    SILVER_IDX,
-    GOLD_IDX,
+enum class ProductID {
+    PROVISION_ID = 0,
+    SPICES_ID,
+    SUGAR_ID,
+    TEA_ID,
+    TOBACCO_ID,
+    RUM_ID,
+    COTTON_ID,
+    SILK_ID,
+    GRAIN_ID,
+    WOOD_ID,
+    SILVER_ID,
+    GOLD_ID,
     _N_PRODUCTS,
 };
 
-static const int N_PRODUCTS = (int)ProductIDX::_N_PRODUCTS;
+static const int N_PRODUCTS = (int)ProductID::_N_PRODUCTS;
 
-struct Product {
-    const std::string name;
+class Product {
+public:
+    const ProductID id;
     const int unit_weight;
     const int base_price;
 
@@ -34,6 +34,9 @@ struct Product {
     float sell_price_coeff = 1.0;
     int n_units = 0;
 
+    Product& operator=(const Product &other);
+
+    std::string get_name();
     int get_buy_price();
     int get_sell_price();
     int get_weight();
@@ -46,9 +49,11 @@ public:
 
     Cargo();
     Cargo(int capacity);
+    Cargo(const Cargo &other);
+    Cargo& operator=(const Cargo &other);
 
     void empty();
-    Product &get_product(ProductIDX idx);
+    Product &get_product(ProductID idx);
     int get_weight();
     int get_free_weight();
 };
