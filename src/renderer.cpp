@@ -14,6 +14,7 @@ void load() {
 
     SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(screen_width, screen_height, "Sea Trader");
+    SetExitKey(KEY_NULL);
     SetTargetFPS(60);
 }
 
