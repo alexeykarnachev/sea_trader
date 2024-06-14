@@ -20,13 +20,6 @@ static const std::array<Product, N_PRODUCTS> PRODUCTS = {
      {.id = ProductID::GOLD_ID, .unit_weight = 50, .base_price = 1000}}
 };
 
-Product &Product::operator=(const Product &other) {
-    if (this != &other) {
-        // *this = other;
-    }
-    return *this;
-}
-
 std::string Product::get_name() {
     switch (this->id) {
         case ProductID::PROVISION_ID: return "Provision";
@@ -67,14 +60,6 @@ Cargo::Cargo(int capacity)
 Cargo::Cargo(const Cargo &other)
     : products(other.products)
     , capacity(other.capacity) {}
-
-Cargo &Cargo::operator=(const Cargo &other) {
-    if (this != &other) {
-        products = other.products;
-        capacity = other.capacity;
-    }
-    return *this;
-}
 
 Product &Cargo::get_product(ProductID idx) {
     return this->products[(int)idx];

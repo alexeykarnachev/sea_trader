@@ -17,28 +17,47 @@ namespace shop {
 
 static int SELECTED_PRODUCT_IDX = -1;
 static bool IS_OPENED = false;
+static entt::entity PORT_ENTITY;
+static cargo::Cargo *SHIP_CARGO_P;
+static cargo::Cargo *PORT_CARGO_P;
 static cargo::Cargo SHIP_CARGO_ORIG;
-static cargo::Cargo *SHIP_CARGO;
-static cargo::Cargo *PORT_CARGO;
-static components::Money *SHIP_MONEY;
-static components::Money *PORT_MONEY;
+static components::Money *SHIP_MONEY_P;
+static components::Money *PORT_MONEY_P;
+static components::Money SHIP_MONEY_ORIG;
+static components::Money PORT_MONEY_ORIG;
 
 void open(entt::entity port_entity) {
+    PORT_ENTITY = port_entity;
+
     auto player_entity = registry::registry.view<components::Player>().front();
     auto &ship = registry::registry.get<components::Ship>(player_entity);
     auto &port = registry::registry.get<components::Port>(port_entity);
 
-    SHIP_MONEY = &registry::registry.get<components::Money>(player_entity);
-    PORT_MONEY = &registry::registry.get<components::Money>(port_entity);
+    SHIP_MONEY_P = &registry::registry.get<components::Money>(player_entity);
+    PORT_MONEY_P = &registry::registry.get<components::Money>(port_entity);
 
     SHIP_CARGO_ORIG = ship.cargo;
-    SHIP_CARGO = &ship.cargo;
-    PORT_CARGO = &port.cargo;
+    SHIP_MONEY_ORIG = *SHIP_MONEY_P;
+    PORT_MONEY_ORIG = *PORT_MONEY_P;
+
+    SHIP_CARGO_P = &ship.cargo;
+    PORT_CARGO_P = &port.cargo;
+
     IS_OPENED = true;
 }
 
-void close(bool accept_deal) {
-    if (!accept_deal) *SHIP_CARGO = SHIP_CARGO_ORIG;
+void reset_deal() {
+    *SHIP_CARGO_P = SHIP_CARGO_ORIG;
+    *SHIP_MONEY_P = SHIP_MONEY_ORIG;
+    *PORT_MONEY_P = PORT_MONEY_ORIG;
+}
+
+void accept_deal() {
+    open(PORT_ENTITY);
+}
+
+void close_and_resed_deal() {
+    reset_deal();
     IS_OPENED = false;
 }
 
@@ -303,8 +322,8 @@ void draw_row(Rectangle rect, int row_idx) {
         rect = split.rect1;
 
         std::string text;
-        auto ship_product = &SHIP_CARGO->products[row_idx];
-        auto port_product = &PORT_CARGO->products[row_idx];
+        auto ship_product = &SHIP_CARGO_P->products[row_idx];
+        auto port_product = &PORT_CARGO_P->products[row_idx];
         switch (i) {
             case 0: {  // ship amount
                 text = std::to_string(ship_product->n_units);
@@ -337,29 +356,51 @@ void draw_row(Rectangle rect, int row_idx) {
                     }
 
                     // buy
-                    int ship_want_n_buy = ui::increment_button_sprite(
+                    int ship_increment_n = ui::increment_button_sprite(
                         ui::SpriteName::LEFT_ARROW_ICON, dst, speed
                     );
 
-                    int ship_max_n_buy = SHIP_CARGO->get_free_weight()
-                                         / port_product->unit_weight;
-                    ship_max_n_buy = std::min(ship_max_n_buy, port_product->n_units);
-                    ship_want_n_buy = std::min(ship_want_n_buy, ship_max_n_buy);
+                    int ship_has_cargo_for_n = SHIP_CARGO_P->get_free_weight()
+                                               / port_product->unit_weight;
+                    int ship_has_money_for_n = SHIP_MONEY_P->value
+                                               / port_product->get_sell_price();
+                    int ship_max_n_buy = std::min(
+                        ship_has_cargo_for_n, port_product->n_units
+                    );
+                    ship_max_n_buy = std::min(ship_has_money_for_n, ship_max_n_buy);
+                    ship_increment_n = std::min(ship_increment_n, ship_max_n_buy);
 
                     // sell
                     dst.x = cell_rect.x + cell_rect.width - PAD - icon_size;
-                    int port_want_n_buy = ui::increment_button_sprite(
+                    int port_increment_n = ui::increment_button_sprite(
                         ui::SpriteName::RIGHT_ARROW_ICON, dst, speed
                     );
 
-                    int port_max_n_buy = PORT_CARGO->get_free_weight()
-                                         / port_product->unit_weight;
-                    port_max_n_buy = std::min(port_max_n_buy, ship_product->n_units);
-                    port_want_n_buy = std::min(port_max_n_buy, port_want_n_buy);
+                    int port_has_cargo_for_n = PORT_CARGO_P->get_free_weight()
+                                               / port_product->unit_weight;
+                    int port_has_money_for_n = PORT_MONEY_P->value
+                                               / port_product->get_buy_price();
+                    int port_max_n_buy = std::min(
+                        port_has_cargo_for_n, ship_product->n_units
+                    );
+                    port_max_n_buy = std::min(port_has_money_for_n, port_max_n_buy);
+                    port_increment_n = std::min(port_increment_n, port_max_n_buy);
 
                     // apply changes
-                    ship_product->n_units += ship_want_n_buy - port_want_n_buy;
-                    port_product->n_units += port_want_n_buy - ship_want_n_buy;
+                    int ship_money_spent = ship_increment_n
+                                           * port_product->get_sell_price();
+                    int ship_money_received = port_increment_n
+                                              * port_product->get_buy_price();
+                    int port_money_spent = port_increment_n
+                                           * port_product->get_buy_price();
+                    int port_money_received = ship_increment_n
+                                              * port_product->get_sell_price();
+
+                    SHIP_MONEY_P->value += ship_money_received - ship_money_spent;
+                    PORT_MONEY_P->value += port_money_received - port_money_spent;
+
+                    ship_product->n_units += ship_increment_n - port_increment_n;
+                    port_product->n_units += port_increment_n - ship_increment_n;
                 }
 
                 text = ship_product->get_name();
@@ -399,8 +440,8 @@ void draw_rows(Rectangle rect) {
 
 void draw_stats_cell(Rectangle rect, bool is_ship) {
     auto who = is_ship ? "Ship" : "Port";
-    auto cargo = is_ship ? SHIP_CARGO : PORT_CARGO;
-    auto money = is_ship ? SHIP_MONEY : PORT_MONEY;
+    auto cargo = is_ship ? SHIP_CARGO_P : PORT_CARGO_P;
+    auto money = is_ship ? SHIP_MONEY_P : PORT_MONEY_P;
 
     float row_height = rect.height / 3.0;
     DrawRectangleRec(rect, ui::color::RECT_COLD);
@@ -442,14 +483,26 @@ void draw_buttons_cell(Rectangle rect) {
     Rectangle accept_button_rect = get_middle_square(split.rect0, PAD);
     Rectangle cancel_button_rect = get_middle_square(split.rect2, PAD);
 
-    draw_text_in_rect(
-        summary_rect, "Total: -6969 MONEY", LARGE_FONT_SIZE, ui::color::TEXT_BUY
-    );
+    int money_diff = SHIP_MONEY_P->value - SHIP_MONEY_ORIG.value;
+    Color money_diff_color;
+    std::string sign_str;
+    if (money_diff > 0) {
+        money_diff_color = ui::color::TEXT_POSITIVE;
+        sign_str = "+";
+    } else if (money_diff < 0) {
+        money_diff_color = ui::color::TEXT_NEGATIVE;
+        sign_str = "";
+    } else {
+        money_diff_color = ui::color::TEXT_MILD;
+        sign_str = "";
+    }
+    auto money_diff_str = sign_str + std::to_string(money_diff) + "$";
+    draw_text_in_rect(summary_rect, money_diff_str, LARGE_FONT_SIZE, money_diff_color);
 
     bool is_accept = ui::button_sprite(ui::SpriteName::ACCEPT_ICON, accept_button_rect);
     bool is_cancel = ui::button_sprite(ui::SpriteName::CANCEL_ICON, cancel_button_rect);
-    if (is_accept) close(true);
-    else if (is_cancel) close(false);
+    if (is_accept) accept_deal();
+    else if (is_cancel) close_and_resed_deal();
 }
 
 void draw_footer(Rectangle rect) {
@@ -474,7 +527,7 @@ void update_and_draw() {
     if (!IS_OPENED) return;
 
     if (IsKeyPressed(KEY_ESCAPE)) {
-        close(false);
+        close_and_resed_deal();
         return;
     }
 

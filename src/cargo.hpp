@@ -26,15 +26,13 @@ static const int N_PRODUCTS = (int)ProductID::_N_PRODUCTS;
 
 class Product {
 public:
-    const ProductID id;
-    const int unit_weight;
-    const int base_price;
+    ProductID id;
+    int unit_weight;
+    int base_price;
 
     float buy_price_coeff = 1.0;
     float sell_price_coeff = 1.0;
     int n_units = 0;
-
-    Product& operator=(const Product &other);
 
     std::string get_name();
     int get_buy_price();
@@ -50,7 +48,6 @@ public:
     Cargo();
     Cargo(int capacity);
     Cargo(const Cargo &other);
-    Cargo& operator=(const Cargo &other);
 
     void empty();
     Product &get_product(ProductID idx);

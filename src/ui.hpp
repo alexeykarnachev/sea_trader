@@ -28,8 +28,8 @@ const Color SPRITE_SELECTED = {255, 255, 255, 255};
 const Color TEXT_LIGHT = {245, 245, 245, 255};
 const Color TEXT_MILD = {150, 150, 150, 255};
 const Color TEXT_DARK = {10, 10, 10, 255};
-const Color TEXT_SELL = {50, 255, 50, 255};
-const Color TEXT_BUY = {255, 50, 50, 255};
+const Color TEXT_POSITIVE = {50, 255, 50, 255};
+const Color TEXT_NEGATIVE = {255, 50, 50, 255};
 
 // button
 const Color BUTTON_COLD = {90, 70, 50, 255};

@@ -31,8 +31,9 @@ public:
 
 class Money {
 public:
-    int value;
+    int value = 0;
 
+    Money();
     Money(int value);
 };
 
