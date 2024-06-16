@@ -7,5 +7,6 @@ namespace st {
 namespace registry {
 
 entt::registry registry;
+
 }
 }  // namespace st

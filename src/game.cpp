@@ -3,6 +3,7 @@
 #include "camera.hpp"
 #include "cargo.hpp"
 #include "components.hpp"
+#include "constants.hpp"
 #include "dynamic_body.hpp"
 #include "entt/entity/fwd.hpp"
 #include "entt/entt.hpp"
@@ -22,7 +23,6 @@
 namespace st {
 namespace game {
 
-static const float DT = 1.0 / 60.0;
 static bool WINDOW_SHOULD_CLOSE = false;
 
 entt::entity create_ship(
@@ -57,21 +57,18 @@ entt::entity create_port(components::Transform transform, components::Port port)
 }
 
 void update_player_ship_movement() {
-    static float torque = 30.0;
-    static float force = 4000.0;
-
     auto entity = registry::registry.view<components::Player>().front();
     auto &body = registry::registry.get<dynamic_body::DynamicBody>(entity);
+    auto ship = registry::registry.get<components::Ship>(entity);
 
     auto transform = registry::registry.get<components::Transform>(entity);
-    float rotation = transform.rotation;
-    Vector2 forward = {cosf(rotation), sinf(rotation)};
+    Vector2 forward = transform.get_forward();
 
-    if (IsKeyDown(KEY_A)) body.apply_torque(-torque);
-    if (IsKeyDown(KEY_D)) body.apply_torque(torque);
+    if (IsKeyDown(KEY_A)) body.apply_torque(-ship.torque);
+    if (IsKeyDown(KEY_D)) body.apply_torque(ship.torque);
 
-    if (IsKeyDown(KEY_W)) body.apply_force(forward, force);
-    if (IsKeyDown(KEY_S)) body.apply_force(forward, -force);
+    if (IsKeyDown(KEY_W)) body.apply_force(forward, ship.force);
+    if (IsKeyDown(KEY_S)) body.apply_force(forward, -ship.force);
 }
 
 void update_player_entering_port() {

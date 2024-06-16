@@ -12,6 +12,8 @@ public:
     float rotation;
 
     Transform(Vector2 position, float rotation);
+
+    Vector2 get_forward();
 };
 
 class Port {
@@ -25,6 +27,8 @@ public:
 class Ship {
 public:
     cargo::Cargo cargo;
+    float torque = 30.0;
+    float force = 4000.0;
 
     Ship(cargo::Cargo);
 };
