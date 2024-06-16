@@ -6,6 +6,7 @@
 
 namespace st {
 namespace dynamic_body {
+
 class DynamicBody {
 public:
     entt::entity entity;

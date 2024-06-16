@@ -89,17 +89,13 @@ entt::entity create_port(Vector2 position) {
 
 void update_player_ship_movement() {
     auto entity = registry::registry.view<components::Player>().front();
-    auto &body = registry::registry.get<dynamic_body::DynamicBody>(entity);
-    auto ship = registry::registry.get<ship::Ship>(entity);
+    auto &ship = registry::registry.get<ship::Ship>(entity);
 
-    auto transform = registry::registry.get<components::Transform>(entity);
-    Vector2 forward = transform.get_forward();
+    if (IsKeyDown(KEY_A)) ship.rotate(false);
+    if (IsKeyDown(KEY_D)) ship.rotate(true);
 
-    if (IsKeyDown(KEY_A)) body.apply_torque(-ship.torque);
-    if (IsKeyDown(KEY_D)) body.apply_torque(ship.torque);
-
-    if (IsKeyDown(KEY_W)) body.apply_force(forward, ship.force);
-    if (IsKeyDown(KEY_S)) body.apply_force(forward, -ship.force);
+    if (IsKeyDown(KEY_W)) ship.move(true);
+    if (IsKeyDown(KEY_S)) ship.move(false);
 }
 
 void update_player_entering_port() {
