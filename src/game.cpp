@@ -26,7 +26,7 @@ namespace game {
 
 static bool WINDOW_SHOULD_CLOSE = false;
 
-entt::entity create_ship(Vector2 position) {
+entt::entity create_ship(Vector2 position, ship::ControllerType controller_type) {
     auto entity = registry::registry.create();
 
     // transform
@@ -40,7 +40,7 @@ entt::entity create_ship(Vector2 position) {
     cargo.get_product(cargo::ProductID::PROVISION_ID).n_units = 30;
     cargo.get_product(cargo::ProductID::RUM_ID).n_units = 10;
     cargo.get_product(cargo::ProductID::WOOD_ID).n_units = 5;
-    ship::Ship ship(entity, cargo);
+    ship::Ship ship(entity, controller_type, cargo);
 
     // money
     components::Money money(1000);
@@ -55,7 +55,7 @@ entt::entity create_ship(Vector2 position) {
 }
 
 entt::entity create_player(Vector2 position) {
-    auto entity = create_ship(position);
+    auto entity = create_ship(position, ship::ControllerType::MANUAL);
     registry::registry.emplace<components::Player>(entity);
 
     return entity;
@@ -87,17 +87,6 @@ entt::entity create_port(Vector2 position) {
     return entity;
 }
 
-void update_player_ship_movement() {
-    auto entity = registry::registry.view<components::Player>().front();
-    auto &ship = registry::registry.get<ship::Ship>(entity);
-
-    if (IsKeyDown(KEY_A)) ship.rotate(false);
-    if (IsKeyDown(KEY_D)) ship.rotate(true);
-
-    if (IsKeyDown(KEY_W)) ship.move(true);
-    if (IsKeyDown(KEY_S)) ship.move(false);
-}
-
 void update_player_entering_port() {
     bool is_enter_pressed = IsKeyPressed(KEY_ENTER);
     if (!is_enter_pressed) return;
@@ -113,6 +102,14 @@ void update_player_entering_port() {
             shop::open(port_entity);
             return;
         }
+    }
+}
+
+void update_ships() {
+    auto view = registry::registry.view<ship::Ship>();
+    for (auto entity : view) {
+        auto &ship = registry::registry.get<ship::Ship>(entity);
+        ship.update();
     }
 }
 
@@ -132,8 +129,8 @@ void update_window_should_close() {
 void update() {
     if (!shop::check_if_opened()) {
         camera::update();
-        update_player_ship_movement();
         update_player_entering_port();
+        update_ships();
         update_dynamic_bodies();
     }
 
@@ -212,6 +209,17 @@ void load() {
         position.x -= 8.0;
         position.y -= 10.0;
         create_player(position);
+    }
+
+    // ---------------------------------------------------------------
+    // create NPCs
+    {
+        Vector2 position = terrain_center;
+        create_ship(position, ship::ControllerType::DUMMY);
+
+        position.x += 10.0;
+        position.y += 5.0;
+        create_ship(position, ship::ControllerType::DUMMY);
     }
 
     // ---------------------------------------------------------------
