@@ -75,10 +75,5 @@ void DynamicBody::update() {
     }
 }
 
-DynamicBody create_ship_preset(entt::entity entity) {
-    DynamicBody body(entity, 1000.0, 1000.0, 1.0, 10.0);
-    return body;
-}
-
 }  // namespace dynamic_body
 }  // namespace st

@@ -18,9 +18,6 @@ Port::Port(float radius, cargo::Cargo cargo)
     : radius(radius)
     , cargo(cargo) {}
 
-Ship::Ship(cargo::Cargo cargo)
-    : cargo(cargo) {}
-
 Money::Money() = default;
 
 Money::Money(int value)

@@ -5,6 +5,7 @@
 #include "entt/entity/fwd.hpp"
 #include "raylib/raylib.h"
 #include "registry.hpp"
+#include "ship.hpp"
 #include "ui.hpp"
 #include <algorithm>
 #include <array>
@@ -30,7 +31,7 @@ void open(entt::entity port_entity) {
     PORT_ENTITY = port_entity;
 
     auto player_entity = registry::registry.view<components::Player>().front();
-    auto &ship = registry::registry.get<components::Ship>(player_entity);
+    auto &ship = registry::registry.get<ship::Ship>(player_entity);
     auto &port = registry::registry.get<components::Port>(port_entity);
 
     SHIP_MONEY_P = &registry::registry.get<components::Money>(player_entity);

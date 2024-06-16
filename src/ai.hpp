@@ -10,10 +10,13 @@ enum class AIType {
     DUMMY,
 };
 
-struct AIDataDummy {
-};
+struct AIDataDummy {};
 
 class AI {
+private:
+    void update_dummy();
+
+public:
     AIType type;
     union {
         AIDataDummy dummy;

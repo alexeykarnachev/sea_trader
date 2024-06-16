@@ -24,15 +24,6 @@ public:
     Port(float radius, cargo::Cargo);
 };
 
-class Ship {
-public:
-    cargo::Cargo cargo;
-    float torque = 30.0;
-    float force = 4000.0;
-
-    Ship(cargo::Cargo);
-};
-
 class Money {
 public:
     int value = 0;

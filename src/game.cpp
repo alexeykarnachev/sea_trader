@@ -12,6 +12,7 @@
 #include "registry.hpp"
 #include "renderer.hpp"
 #include "resources.hpp"
+#include "ship.hpp"
 #include "shop.hpp"
 #include "terrain.hpp"
 #include "ui.hpp"
@@ -28,15 +29,26 @@ static bool WINDOW_SHOULD_CLOSE = false;
 entt::entity create_ship(Vector2 position) {
     auto entity = registry::registry.create();
 
+    // transform
     components::Transform transform(position, 0.0);
+
+    // dynamic_body
+    dynamic_body::DynamicBody body(entity, 1000.0, 1000.0, 1.0, 10.0);
+
+    // ship
+    cargo::Cargo cargo(1000);
+    cargo.get_product(cargo::ProductID::PROVISION_ID).n_units = 30;
+    cargo.get_product(cargo::ProductID::RUM_ID).n_units = 10;
+    cargo.get_product(cargo::ProductID::WOOD_ID).n_units = 5;
+    ship::Ship ship(entity, cargo);
+
+    // money
     components::Money money(1000);
 
-    auto ship = cargo::create_ship_preset();
-    auto body = dynamic_body::create_ship_preset(entity);
-
+    // entity
     registry::registry.emplace<components::Transform>(entity, transform);
     registry::registry.emplace<dynamic_body::DynamicBody>(entity, body);
-    registry::registry.emplace<components::Ship>(entity, ship);
+    registry::registry.emplace<ship::Ship>(entity, ship);
     registry::registry.emplace<components::Money>(entity, money);
 
     return entity;
@@ -49,11 +61,28 @@ entt::entity create_player(Vector2 position) {
     return entity;
 }
 
-entt::entity create_port(components::Transform transform, components::Port port) {
+entt::entity create_port(Vector2 position) {
     auto entity = registry::registry.create();
+
+    // transform
+    components::Transform transform(position, 0.0);
+
+    // money
+    components::Money money(500000);
+
+    // port
+    cargo::Cargo cargo(1000000);
+    cargo.get_product(cargo::ProductID::PROVISION_ID).n_units = 1000;
+    cargo.get_product(cargo::ProductID::RUM_ID).n_units = 1000;
+    cargo.get_product(cargo::ProductID::WOOD_ID).n_units = 500;
+    cargo.get_product(cargo::ProductID::SILVER_ID).n_units = 50;
+    cargo.get_product(cargo::ProductID::GOLD_ID).n_units = 25;
+    components::Port port(3.0, cargo);
+
+    // entity
     registry::registry.emplace<components::Transform>(entity, transform);
     registry::registry.emplace<components::Port>(entity, port);
-    registry::registry.emplace<components::Money>(entity, 500000);
+    registry::registry.emplace<components::Money>(entity, money);
 
     return entity;
 }
@@ -61,7 +90,7 @@ entt::entity create_port(components::Transform transform, components::Port port)
 void update_player_ship_movement() {
     auto entity = registry::registry.view<components::Player>().front();
     auto &body = registry::registry.get<dynamic_body::DynamicBody>(entity);
-    auto ship = registry::registry.get<components::Ship>(entity);
+    auto ship = registry::registry.get<ship::Ship>(entity);
 
     auto transform = registry::registry.get<components::Transform>(entity);
     Vector2 forward = transform.get_forward();
@@ -123,7 +152,7 @@ void draw_ships() {
     renderer::set_game_camera(shader);
     BeginShaderMode(shader);
 
-    auto view = registry::registry.view<components::Transform, components::Ship>();
+    auto view = registry::registry.view<components::Transform, ship::Ship>();
     for (auto entity : view) {
         auto [transform, ship] = view.get(entity);
 
@@ -220,9 +249,7 @@ void load() {
                 if (n > 0) {
                     int idx = std::rand() % n;
                     Vector2 position = candidates[idx];
-                    components::Transform transform(position, 0.0);
-                    components::Port port(3.0, cargo::create_port_preset());
-                    create_port(transform, port);
+                    create_port(position);
                 }
             }
         }

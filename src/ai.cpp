@@ -13,8 +13,14 @@ AI::AI(AIType type, entt::entity entity)
     : type(type)
     , entity(entity) {}
 
-void AI::update() {
+void AI::update_dummy() {
     auto &body = registry::registry.get<dynamic_body::DynamicBody>(this->entity);
+}
+
+void AI::update() {
+    switch (this->type) {
+        case AIType::DUMMY: this->update_dummy(); break;
+    }
 }
 
 }  // namespace ai

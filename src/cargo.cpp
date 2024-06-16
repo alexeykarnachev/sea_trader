@@ -86,25 +86,5 @@ int Cargo::get_free_weight() {
     return free_weight;
 }
 
-Cargo create_ship_preset() {
-    Cargo cargo(1000);
-    cargo.get_product(ProductID::PROVISION_ID).n_units = 30;
-    cargo.get_product(ProductID::RUM_ID).n_units = 10;
-    cargo.get_product(ProductID::WOOD_ID).n_units = 5;
-
-    return cargo;
-}
-
-Cargo create_port_preset() {
-    Cargo cargo(1000000);
-    cargo.get_product(ProductID::PROVISION_ID).n_units = 1000;
-    cargo.get_product(ProductID::RUM_ID).n_units = 1000;
-    cargo.get_product(ProductID::WOOD_ID).n_units = 500;
-    cargo.get_product(ProductID::SILVER_ID).n_units = 50;
-    cargo.get_product(ProductID::GOLD_ID).n_units = 25;
-
-    return cargo;
-}
-
 }  // namespace cargo
 }  // namespace st

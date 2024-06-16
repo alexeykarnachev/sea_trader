@@ -35,7 +35,5 @@ public:
     void update();
 };
 
-DynamicBody create_ship_preset(entt::entity entity);
-
 }  // namespace dynamic_body
 }  // namespace st

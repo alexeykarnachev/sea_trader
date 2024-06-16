@@ -55,8 +55,5 @@ public:
     int get_free_weight();
 };
 
-Cargo create_ship_preset();
-Cargo create_port_preset();
-
 }  // namespace cargo
 }  // namespace st
