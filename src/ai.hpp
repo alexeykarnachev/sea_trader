@@ -22,6 +22,7 @@ class AI {
     entt::entity entity;
 
     AI(AIType type, entt::entity entity);
+
     void update();
 };
 

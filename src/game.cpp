@@ -25,24 +25,26 @@ namespace game {
 
 static bool WINDOW_SHOULD_CLOSE = false;
 
-entt::entity create_ship(
-    components::Transform transform, dynamic_body::DynamicBody dynamic_body
-) {
+entt::entity create_ship(Vector2 position) {
     auto entity = registry::registry.create();
+
+    components::Transform transform(position, 0.0);
+    components::Money money(1000);
+
+    auto ship = cargo::create_ship_preset();
+    auto body = dynamic_body::create_ship_preset(entity);
+
     registry::registry.emplace<components::Transform>(entity, transform);
-    registry::registry.emplace<dynamic_body::DynamicBody>(entity, dynamic_body);
-    registry::registry.emplace<components::Ship>(entity, cargo::create_ship_preset());
+    registry::registry.emplace<dynamic_body::DynamicBody>(entity, body);
+    registry::registry.emplace<components::Ship>(entity, ship);
+    registry::registry.emplace<components::Money>(entity, money);
 
     return entity;
 }
 
 entt::entity create_player(Vector2 position) {
-    components::Transform transform(position, 0.0);
-    auto body = dynamic_body::create_ship_preset();
-
-    auto entity = create_ship(transform, body);
+    auto entity = create_ship(position);
     registry::registry.emplace<components::Player>(entity);
-    registry::registry.emplace<components::Money>(entity, 1000);
 
     return entity;
 }
@@ -90,46 +92,10 @@ void update_player_entering_port() {
 }
 
 void update_dynamic_bodies() {
-    auto view = registry::registry.view<components::Transform, dynamic_body::DynamicBody>(
-    );
+    auto view = registry::registry.view<dynamic_body::DynamicBody>();
     for (auto entity : view) {
-        auto [transform, body] = view.get(entity);
-
-        // update linear velocity
-        Vector2 damping_force = Vector2Scale(body.linear_velocity, -body.linear_damping);
-        Vector2 net_force = Vector2Add(body.net_force, damping_force);
-        Vector2 linear_acceleration = Vector2Scale(net_force, 1.0f / body.mass);
-        body.linear_velocity = Vector2Add(
-            body.linear_velocity, Vector2Scale(linear_acceleration, DT)
-        );
-        body.net_force = {0.0, 0.0};
-
-        // update angular velocity
-        float damping_torque = body.angular_velocity * -body.angular_damping;
-        float net_torque = body.net_torque + damping_torque;
-        float angular_acceleration = net_torque / body.moment_of_inertia;
-        body.angular_velocity += angular_acceleration * DT;
-        body.net_torque = 0.0;
-
-        // apply linear velocity
-        Vector2 linear_step = Vector2Scale(body.linear_velocity, DT);
-        Vector2 position = Vector2Add(transform.position, linear_step);
-        if (Vector2Length(body.linear_velocity) < EPSILON) {
-            body.linear_velocity = {0.0, 0.0};
-        }
-
-        if (terrain::check_if_water(position)) {
-            transform.position = position;
-        } else {
-            body.linear_velocity = {0.0, 0.0};
-        }
-
-        // apply angular velocity
-        float angular_step = body.angular_velocity * DT;
-        transform.rotation = transform.rotation + angular_step;
-        if (fabs(body.angular_velocity) < EPSILON) {
-            body.angular_velocity = 0.0;
-        }
+        auto &body = registry::registry.get<dynamic_body::DynamicBody>(entity);
+        body.update();
     }
 }
 
