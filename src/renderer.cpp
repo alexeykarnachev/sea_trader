@@ -8,12 +8,12 @@
 namespace st {
 namespace renderer {
 
-void load() {
-    int screen_width = 1500;
-    int screen_height = 1000;
+int SCREEN_WIDTH = 1500;
+int SCREEN_HEIGHT = 1000;
 
+void load() {
     SetConfigFlags(FLAG_MSAA_4X_HINT);
-    InitWindow(screen_width, screen_height, "Sea Trader");
+    InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Sea Trader");
     SetExitKey(KEY_NULL);
     SetTargetFPS(60);
 }

@@ -20,11 +20,26 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <vector>
 
 namespace st {
 namespace game {
 
 static bool WINDOW_SHOULD_CLOSE = false;
+
+Vector2 screen_to_world(Vector2 screen_position) {
+    Vector2 screen_size = {(float)renderer::SCREEN_WIDTH, (float)renderer::SCREEN_HEIGHT};
+    Vector2 cursor = Vector2Divide(screen_position, screen_size);
+    float aspect = screen_size.x / screen_size.y;
+    float view_height = camera::VIEW_WIDTH / aspect;
+    Vector2 center = camera::TARGET;
+    float left = center.x - 0.5 * camera::VIEW_WIDTH;
+    float top = center.y - 0.5 * view_height;
+    float x = left + camera::VIEW_WIDTH * cursor.x;
+    float y = top + view_height * cursor.y;
+
+    return {.x = x, .y = y};
+}
 
 entt::entity create_ship(Vector2 position, ship::ControllerType controller_type) {
     auto entity = registry::registry.create();
@@ -137,6 +152,23 @@ void update() {
     update_window_should_close();
 }
 
+void draw_ports() {
+    static float radius = 0.8;
+
+    Shader shader = resources::SPRITE_SHADER;
+    renderer::set_game_camera(shader);
+    BeginShaderMode(shader);
+
+    auto view = registry::registry.view<components::Transform, components::Port>();
+    for (auto entity : view) {
+        auto [transform, port] = view.get(entity);
+        DrawCircleV(transform.position, radius, RED);
+        DrawRing(
+            transform.position, port.radius, port.radius + 0.15, 0.0, 360.0, 32, RED
+        );
+    }
+}
+
 void draw_ships() {
     static float height = 0.5;
     static float width = 1.0;
@@ -162,21 +194,25 @@ void draw_ships() {
     EndShaderMode();
 }
 
-void draw_ports() {
-    static float radius = 0.8;
+static std::vector<Vector2> PATH;
+void update_and_draw_debug() {
+    auto player_entity = registry::registry.view<components::Player>().front();
+    auto player_transform = registry::registry.get<components::Transform>(player_entity);
+
+    if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
+        auto start = player_transform.position;
+        auto end = screen_to_world(GetMousePosition());
+        PATH = terrain::get_path(start, end);
+        printf("Path: %ld\n", PATH.size());
+    }
 
     Shader shader = resources::SPRITE_SHADER;
     renderer::set_game_camera(shader);
     BeginShaderMode(shader);
-
-    auto view = registry::registry.view<components::Transform, components::Port>();
-    for (auto entity : view) {
-        auto [transform, port] = view.get(entity);
-        DrawCircleV(transform.position, radius, RED);
-        DrawRing(
-            transform.position, port.radius, port.radius + 0.15, 0.0, 360.0, 32, RED
-        );
+    for (auto point : PATH) {
+        DrawCircleV(point, 0.3, MAGENTA);
     }
+    EndShaderMode();
 }
 
 void draw() {
@@ -189,6 +225,8 @@ void draw() {
     draw_ships();
 
     shop::update_and_draw();
+
+    update_and_draw_debug();
 
     EndDrawing();
 }

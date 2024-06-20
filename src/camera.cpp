@@ -7,8 +7,8 @@
 namespace st {
 namespace camera {
 
-static float VIEW_WIDTH = 50.0;
-static Vector2 TARGET = {0.0, 0.0};
+float VIEW_WIDTH = 50.0;
+Vector2 TARGET = {0.0, 0.0};
 
 static float MIN_VIEW_WIDTH = 10.0f;
 static float MAX_VIEW_WIDTH = 500.0f;

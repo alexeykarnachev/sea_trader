@@ -5,6 +5,9 @@
 namespace st {
 namespace renderer {
 
+extern int SCREEN_WIDTH;
+extern int SCREEN_HEIGHT;
+
 void load();
 void unload();
 

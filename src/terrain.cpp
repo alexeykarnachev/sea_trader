@@ -6,11 +6,18 @@
 #include "stb/stb_perlin.h"
 #include <algorithm>
 #include <cfloat>
+#include <cmath>
+#include <cstdio>
 #include <cstdlib>
 #include <queue>
+#include <vector>
 
 namespace st {
 namespace terrain {
+
+static std::pair<int, int> DIRECTIONS[8] = {
+    {-1, 0}, {-1, -1}, {0, -1}, {1, -1}, {1, 0}, {1, 1}, {0, 1}, {-1, 1}
+};
 
 static const int WORLD_SIZE = 200;
 static const float RESOLUTION = 4.0;
@@ -70,10 +77,6 @@ void load() {
         }
     }
 
-    std::pair<int, int> directions[8] = {
-        {-1, 0}, {-1, -1}, {0, -1}, {1, -1}, {1, 0}, {1, 1}, {0, 1}, {-1, 1}
-    };
-
     while (!queue.empty()) {
         auto [i0, d0] = queue.front();
         int y0 = i0 / DATA_SIZE;
@@ -81,7 +84,7 @@ void load() {
 
         queue.pop();
 
-        for (auto [dx, dy] : directions) {
+        for (auto [dx, dy] : DIRECTIONS) {
             int x1 = x0 + dx;
             int y1 = y0 + dy;
             int i1 = y1 * DATA_SIZE + x1;
@@ -120,6 +123,13 @@ int world_to_data_idx(Vector2 pos) {
     return idx;
 }
 
+Vector2 data_idx_to_world(int idx) {
+    int y = idx / DATA_SIZE;
+    int x = idx % DATA_SIZE;
+    Vector2 pos = {x / RESOLUTION, y / RESOLUTION};
+    return pos;
+}
+
 void unload() {
     UnloadTexture(HEIGHTS_TEXTURE);
 }
@@ -147,6 +157,82 @@ float get_height(Vector2 pos) {
 
 float get_dist_to_water(Vector2 pos) {
     return DISTS_TO_WATER[world_to_data_idx(pos)];
+}
+
+struct Node {
+    int idx;
+    float g_cost, h_cost, f_cost;
+    int parent_idx;
+
+    bool operator>(const Node &other) const {
+        return f_cost > other.f_cost;
+    }
+};
+
+std::vector<Vector2> get_path(Vector2 start, Vector2 end) {
+    int start_idx = world_to_data_idx(start);
+    int end_idx = world_to_data_idx(end);
+
+    auto heuristic = [](int idx1, int idx2) {
+        int x1 = idx1 % DATA_SIZE;
+        int y1 = idx1 / DATA_SIZE;
+
+        int x2 = idx2 % DATA_SIZE;
+        int y2 = idx2 / DATA_SIZE;
+
+        return (float)std::hypot(x2 - x1, y2 - y1);
+    };
+
+    std::priority_queue<Node, std::vector<Node>, std::greater<Node>> open_list;
+    std::unordered_map<int, Node> all_nodes;
+    std::unordered_map<int, bool> closed_list;
+
+    all_nodes[start_idx] = {
+        start_idx, 0, heuristic(start_idx, end_idx), heuristic(start_idx, end_idx), -1
+    };
+    open_list.push(all_nodes[start_idx]);
+
+    while (!open_list.empty()) {
+        Node current = open_list.top();
+        open_list.pop();
+        closed_list[current.idx] = true;
+
+        if (current.idx == end_idx) {
+            std::vector<Vector2> path;
+            while (current.idx != 0) {
+                path.push_back(data_idx_to_world(current.idx));
+                current = all_nodes[current.parent_idx];
+            }
+            std::reverse(path.begin(), path.end());
+            return path;
+        }
+
+        int y = current.idx / DATA_SIZE;
+        int x = current.idx % DATA_SIZE;
+        for (auto &dir : DIRECTIONS) {
+            int new_x = x + dir.first;
+            int new_y = y + dir.second;
+            int new_idx = new_y * DATA_SIZE + new_x;
+
+            bool is_water = check_if_water(HEIGHTS[new_idx]);
+            if (new_x < 0 || new_x >= DATA_SIZE || new_y < 0 || new_y >= DATA_SIZE
+                || closed_list[new_idx] || !is_water) {
+                continue;
+            }
+
+            float g_cost = current.g_cost
+                           + (dir.first == 0 || dir.second == 0 ? 1.0f : 1.4f);
+            float h_cost = heuristic(new_idx, end_idx);
+            float f_cost = g_cost + h_cost;
+
+            if (!all_nodes.count(new_idx) || g_cost < all_nodes[new_idx].g_cost) {
+                all_nodes[new_idx] = {new_idx, g_cost, h_cost, f_cost, current.idx};
+                open_list.push(all_nodes[new_idx]);
+            }
+        }
+    }
+
+    return {};
 }
 
 bool check_if_water(float h) {

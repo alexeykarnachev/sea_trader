@@ -8,5 +8,5 @@ namespace registry {
 
 extern entt::registry registry;
 
-}
+}  // namespace registry
 }  // namespace st
