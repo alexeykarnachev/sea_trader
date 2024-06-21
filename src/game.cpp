@@ -204,14 +204,13 @@ void update_and_draw_debug() {
         auto start = player_transform.position;
         auto end = screen_to_world(GetMousePosition());
         PATH = terrain::get_path(start, end);
-        printf("Path: %ld\n", PATH.size());
     }
 
     Shader shader = resources::SPRITE_SHADER;
     renderer::set_game_camera(shader);
     BeginShaderMode(shader);
-    for (auto point : PATH) {
-        DrawCircleV(point, 0.3, MAGENTA);
+    for (int i = 0; i < PATH.size(); i += 1) {
+        DrawCircleV(PATH[i], 0.3, MAGENTA);
     }
     EndShaderMode();
 }

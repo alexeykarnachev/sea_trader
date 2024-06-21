@@ -1,15 +1,17 @@
 #include "terrain.hpp"
 
-#include "profiler.hpp"
+#include "constants.hpp"
 #include "raylib/raylib.h"
 #include "renderer.hpp"
 #include "resources.hpp"
 #include "stb/stb_perlin.h"
 #include <algorithm>
+#include <array>
 #include <cfloat>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <queue>
 #include <vector>
 
@@ -20,14 +22,40 @@ static std::pair<int, int> DIRECTIONS[8] = {
     {-1, 0}, {-1, -1}, {0, -1}, {1, -1}, {1, 0}, {1, 1}, {0, 1}, {-1, 1}
 };
 
-static const int WORLD_SIZE = 200;
-static const float RESOLUTION = 4.0;
-static const float WATER_LEVEL = 0.6;
-static const int DATA_SIZE = WORLD_SIZE * RESOLUTION;
+static constexpr int WORLD_SIZE = 200;
+static constexpr float RESOLUTION = 4.0;
+static constexpr float WATER_LEVEL = 0.6;
+static constexpr int PATH_STEP = 100;
+static constexpr int DATA_SIZE = WORLD_SIZE * RESOLUTION;
 
 static float *HEIGHTS;
 static float *DISTS_TO_WATER;
+static float *DISTS_TO_GROUND;
 static Texture HEIGHTS_TEXTURE;
+
+std::pair<int, int> data_idx_to_xy(int idx) {
+    int x = idx % DATA_SIZE;
+    int y = idx / DATA_SIZE;
+    return std::make_pair(x, y);
+}
+
+int world_to_data_idx(Vector2 pos) {
+    int x = pos.x * RESOLUTION;
+    int y = pos.y * RESOLUTION;
+    int idx = y * DATA_SIZE + x;
+
+    if (idx < 0 || idx > DATA_SIZE * DATA_SIZE) {
+        return -1;
+    }
+
+    return idx;
+}
+
+Vector2 data_idx_to_world(int idx) {
+    auto [x, y] = data_idx_to_xy(idx);
+    Vector2 pos = {x / RESOLUTION, y / RESOLUTION};
+    return pos;
+}
 
 void load() {
     // -------------------------------------------------------------------
@@ -47,8 +75,7 @@ void load() {
     float max_height = -FLT_MAX;
     float min_height = FLT_MAX;
     for (int i = 0; i < DATA_SIZE * DATA_SIZE; ++i) {
-        int y = i / DATA_SIZE;
-        int x = i % DATA_SIZE;
+        auto [x, y] = data_idx_to_xy(i);
 
         float nx = (float)(x + offset_x) * (scale / (float)DATA_SIZE);
         float ny = (float)(y + offset_y) * (scale / (float)DATA_SIZE);
@@ -66,41 +93,85 @@ void load() {
 
     // -------------------------------------------------------------------
     // init dists_to_water
-    DISTS_TO_WATER = (float *)malloc(DATA_SIZE * DATA_SIZE * sizeof(float));
-    std::fill(DISTS_TO_WATER, DISTS_TO_WATER + DATA_SIZE * DATA_SIZE, -1.0);
+    {
+        DISTS_TO_WATER = (float *)malloc(DATA_SIZE * DATA_SIZE * sizeof(float));
+        std::fill(DISTS_TO_WATER, DISTS_TO_WATER + DATA_SIZE * DATA_SIZE, -1.0);
 
-    std::queue<std::pair<int, float>> queue;
-    for (int i = 0; i < DATA_SIZE * DATA_SIZE; ++i) {
-        float height = HEIGHTS[i];
-        if (check_if_water(height)) {
-            DISTS_TO_WATER[i] = 0.0;
-            queue.push({i, 0.0});
+        std::queue<std::pair<int, float>> queue;
+        for (int i = 0; i < DATA_SIZE * DATA_SIZE; ++i) {
+            float height = HEIGHTS[i];
+            if (check_if_water(height)) {
+                DISTS_TO_WATER[i] = 0.0;
+                queue.push({i, 0.0});
+            }
+        }
+
+        while (!queue.empty()) {
+            auto [i0, d0] = queue.front();
+            auto [x0, y0] = data_idx_to_xy(i0);
+
+            queue.pop();
+
+            for (auto [dx, dy] : DIRECTIONS) {
+                int x1 = x0 + dx;
+                int y1 = y0 + dy;
+                int i1 = y1 * DATA_SIZE + x1;
+
+                if (x1 >= 0 && x1 < DATA_SIZE && y1 >= 0 && y1 < DATA_SIZE) {
+                    if (DISTS_TO_WATER[i1] >= 0.0) continue;
+
+                    float height = HEIGHTS[i1];
+                    float d1 = 0.0;
+                    if (!check_if_water(height)) {
+                        float dd = dx == 0 || dy == 0 ? 1.0 : SQRT2;
+                        d1 = d0 + dd;
+                    }
+                    DISTS_TO_WATER[i1] = d1;
+                    queue.push({i1, d1});
+                }
+            }
         }
     }
 
-    while (!queue.empty()) {
-        auto [i0, d0] = queue.front();
-        int y0 = i0 / DATA_SIZE;
-        int x0 = i0 % DATA_SIZE;
+    // -------------------------------------------------------------------
+    // init dists_to_ground
+    // TODO: factor out bfs procedure
+    {
+        DISTS_TO_GROUND = (float *)malloc(DATA_SIZE * DATA_SIZE * sizeof(float));
+        std::fill(DISTS_TO_GROUND, DISTS_TO_GROUND + DATA_SIZE * DATA_SIZE, -1.0);
 
-        queue.pop();
+        std::queue<std::pair<int, float>> queue;
+        for (int i = 0; i < DATA_SIZE * DATA_SIZE; ++i) {
+            float height = HEIGHTS[i];
+            if (!check_if_water(height)) {
+                DISTS_TO_GROUND[i] = 0.0;
+                queue.push({i, 0.0});
+            }
+        }
 
-        for (auto [dx, dy] : DIRECTIONS) {
-            int x1 = x0 + dx;
-            int y1 = y0 + dy;
-            int i1 = y1 * DATA_SIZE + x1;
+        while (!queue.empty()) {
+            auto [i0, d0] = queue.front();
+            auto [x0, y0] = data_idx_to_xy(i0);
 
-            if (x1 >= 0 && x1 < DATA_SIZE && y1 >= 0 && y1 < DATA_SIZE) {
-                if (DISTS_TO_WATER[i1] >= 0.0) continue;
+            queue.pop();
 
-                float height = HEIGHTS[i1];
-                float d1 = 0.0;
-                if (!check_if_water(height)) {
-                    float dd = dx == 0 || dy == 0 ? 1.0 : 1.4142;
-                    d1 = d0 + dd;
+            for (auto [dx, dy] : DIRECTIONS) {
+                int x1 = x0 + dx;
+                int y1 = y0 + dy;
+                int i1 = y1 * DATA_SIZE + x1;
+
+                if (x1 >= 0 && x1 < DATA_SIZE && y1 >= 0 && y1 < DATA_SIZE) {
+                    if (DISTS_TO_GROUND[i1] >= 0.0) continue;
+
+                    float height = HEIGHTS[i1];
+                    float d1 = 0.0;
+                    if (check_if_water(height)) {
+                        float dd = dx == 0 || dy == 0 ? 1.0 : SQRT2;
+                        d1 = d0 + dd;
+                    }
+                    DISTS_TO_GROUND[i1] = d1;
+                    queue.push({i1, d1});
                 }
-                DISTS_TO_WATER[i1] = d1;
-                queue.push({i1, d1});
             }
         }
     }
@@ -114,21 +185,6 @@ void load() {
     image.mipmaps = 1;
     image.format = PIXELFORMAT_UNCOMPRESSED_R32;
     HEIGHTS_TEXTURE = LoadTextureFromImage(image);
-}
-
-int world_to_data_idx(Vector2 pos) {
-    int x = pos.x * RESOLUTION;
-    int y = pos.y * RESOLUTION;
-    int idx = y * DATA_SIZE + x;
-
-    return idx;
-}
-
-Vector2 data_idx_to_world(int idx) {
-    int y = idx / DATA_SIZE;
-    int x = idx % DATA_SIZE;
-    Vector2 pos = {x / RESOLUTION, y / RESOLUTION};
-    return pos;
 }
 
 void unload() {
@@ -153,93 +209,15 @@ Rectangle get_world_rect() {
 }
 
 float get_height(Vector2 pos) {
-    return HEIGHTS[world_to_data_idx(pos)];
+    int idx = world_to_data_idx(pos);
+    if (idx < 0) return FLT_MAX;
+    return HEIGHTS[idx];
 }
 
 float get_dist_to_water(Vector2 pos) {
-    return DISTS_TO_WATER[world_to_data_idx(pos)];
-}
-
-struct Node {
-    int idx;
-    float g_cost, h_cost, f_cost;
-    int parent_idx;
-
-    bool operator>(const Node &other) const {
-        return f_cost > other.f_cost;
-    }
-};
-
-std::vector<Vector2> get_path(Vector2 start, Vector2 end) {
-    profiler::push("get_path");
-
-    int start_idx = world_to_data_idx(start);
-    int end_idx = world_to_data_idx(end);
-
-    auto heuristic = [](int idx1, int idx2) {
-        int x1 = idx1 % DATA_SIZE;
-        int y1 = idx1 / DATA_SIZE;
-
-        int x2 = idx2 % DATA_SIZE;
-        int y2 = idx2 / DATA_SIZE;
-
-        return (float)std::hypot(x2 - x1, y2 - y1);
-    };
-
-    std::priority_queue<Node, std::vector<Node>, std::greater<Node>> open_list;
-    std::unordered_map<int, Node> all_nodes;
-    std::unordered_map<int, bool> closed_list;
-
-    all_nodes[start_idx] = {
-        start_idx, 0, heuristic(start_idx, end_idx), heuristic(start_idx, end_idx), -1
-    };
-    open_list.push(all_nodes[start_idx]);
-
-    std::vector<Vector2> path = {};
-    while (!open_list.empty()) {
-        Node current = open_list.top();
-        open_list.pop();
-        closed_list[current.idx] = true;
-
-        if (current.idx == end_idx) {
-            while (current.idx != 0) {
-                path.push_back(data_idx_to_world(current.idx));
-                current = all_nodes[current.parent_idx];
-            }
-            std::reverse(path.begin(), path.end());
-            break;
-        }
-
-        int y = current.idx / DATA_SIZE;
-        int x = current.idx % DATA_SIZE;
-
-        profiler::push("iterate_directions");
-        for (auto &dir : DIRECTIONS) {
-            int new_x = x + dir.first;
-            int new_y = y + dir.second;
-            int new_idx = new_y * DATA_SIZE + new_x;
-
-            bool is_water = check_if_water(HEIGHTS[new_idx]);
-            if (new_x < 0 || new_x >= DATA_SIZE || new_y < 0 || new_y >= DATA_SIZE
-                || closed_list[new_idx] || !is_water) {
-                continue;
-            }
-
-            float g_cost = current.g_cost
-                           + (dir.first == 0 || dir.second == 0 ? 1.0f : 1.4f);
-            float h_cost = heuristic(new_idx, end_idx);
-            float f_cost = g_cost + h_cost;
-
-            if (!all_nodes.count(new_idx) || g_cost < all_nodes[new_idx].g_cost) {
-                all_nodes[new_idx] = {new_idx, g_cost, h_cost, f_cost, current.idx};
-                open_list.push(all_nodes[new_idx]);
-            }
-        }
-        profiler::pop();
-    }
-
-    profiler::pop();
-    return path;
+    int idx = world_to_data_idx(pos);
+    if (idx < 0) return FLT_MAX;
+    return DISTS_TO_WATER[idx];
 }
 
 bool check_if_water(float h) {
@@ -250,6 +228,103 @@ bool check_if_water(Vector2 pos) {
     return check_if_water(get_height(pos));
 }
 
+// -----------------------------------------------------------------------
+// a* path finding
+struct Node {
+    int idx;
+    int parent_idx;
+    float g_cost;
+    float f_cost;
+};
+
+struct CompareNode {
+    bool operator()(const Node &n1, const Node &n2) {
+        return n1.f_cost > n2.f_cost;
+    }
+};
+
+float get_h_cost(int idx1, int idx2) {
+    // euclidian cost
+    auto [x1, y1] = data_idx_to_xy(idx1);
+    auto [x2, y2] = data_idx_to_xy(idx2);
+
+    int dx = x2 - x1;
+    int dy = y2 - y1;
+
+    float euclidian_cost = std::sqrt(dx * dx + dy * dy);
+
+    // distance to ground cost
+    float dist_to_ground_cost = -DISTS_TO_GROUND[idx1];
+    dist_to_ground_cost = -std::min(dist_to_ground_cost, 100.0f) / 100.0f;
+    dist_to_ground_cost *= 10.0;
+
+    // compound cost
+    float h_cost = euclidian_cost + dist_to_ground_cost;
+
+    return h_cost;
+}
+
+std::vector<Vector2> get_path(Vector2 start, Vector2 end) {
+    static std::array<Node, DATA_SIZE * DATA_SIZE> nodes;
+    std::memset(nodes.data(), 0, sizeof(nodes));
+
+    std::priority_queue<Node, std::vector<Node>, CompareNode> queue;
+    std::vector<Vector2> path = {};
+
+    int start_idx = world_to_data_idx(start);
+    int end_idx = world_to_data_idx(end);
+    if (start_idx < 0 || end_idx < 0) return path;
+    auto [end_x, end_y] = data_idx_to_xy(end_idx);
+
+    Node start_node = {start_idx, -1, 0, get_h_cost(start_idx, end_idx)};
+    nodes[start_idx] = start_node;
+    queue.push(start_node);
+
+    while (!queue.empty()) {
+        Node current = queue.top();
+        queue.pop();
+
+        if (current.idx == end_idx) {
+            while (current.parent_idx != -1) {
+                path.push_back(data_idx_to_world(current.idx));
+                current = nodes[current.parent_idx];
+            }
+            std::reverse(path.begin(), path.end());
+            break;
+        }
+
+        auto [current_x, current_y] = data_idx_to_xy(current.idx);
+
+        int dx = end_x - current_x;
+        int dy = end_y - current_y;
+        float d = std::sqrt(dx * dx + dy * dy);
+        int step = d <= PATH_STEP * SQRT2 ? 1 : PATH_STEP;
+
+        for (auto &dir : DIRECTIONS) {
+            int new_x = current_x + dir.first * step;
+            int new_y = current_y + dir.second * step;
+            int new_idx = new_y * DATA_SIZE + new_x;
+            if (new_idx >= DATA_SIZE * DATA_SIZE) continue;
+            if (!check_if_water(HEIGHTS[new_idx])) continue;
+
+            float d_cost = (dir.first == 0 || dir.second == 0) ? step : step * SQRT2;
+            float g_cost = current.g_cost + d_cost;
+            float h_cost = get_h_cost(new_idx, end_idx);
+            float f_cost = g_cost + h_cost;
+
+            Node new_node = nodes[new_idx];
+            if (new_node.idx == 0 || f_cost < new_node.f_cost) {
+                nodes[new_idx] = {new_idx, current.idx, g_cost, f_cost};
+                queue.push(nodes[new_idx]);
+            }
+        }
+    }
+
+    return path;
+}
+
+// -----------------------------------------------------------------------
+// draw
 void draw() {
     Shader shader = resources::TERRAIN_SHADER;
     renderer::set_game_camera(shader);

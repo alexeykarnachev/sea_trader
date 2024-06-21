@@ -228,10 +228,12 @@ bool radio_button_sprite(
     DrawTexturePro(texture, src, dst, {0.0, 0.0}, 0.0, btn.tint);
     return btn.as_bool();
 }
+
 bool radio_button_sprite(SpriteName sprite_name, Rectangle dst, int *store, int value) {
     Rectangle src = get_sprite_src(sprite_name);
     return radio_button_sprite(TEXTURE, src, dst, store, value);
 }
+
 bool radio_button_rect(Rectangle dst, int *store, int value) {
     RadioButton btn(dst, store, value);
 

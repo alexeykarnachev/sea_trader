@@ -5,4 +5,5 @@ all:
 	-o ./build/linux/sea_trader \
 	./src/*.cpp \
 	-L./deps/lib/linux -lraylib -lGL -lpthread -ldl
+# -O3 \
 # -fsanitize=address \

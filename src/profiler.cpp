@@ -94,10 +94,12 @@ void pop() {
 }
 
 void draw() {
+    // TODO: make proper ui
     for (auto &[name, stats] : STATS) {
-        printf("[%s] ", name.c_str());
-        printf("total_n_calls: %d", stats.total_n_calls);
+        printf("%s", name.c_str());
         printf("\n");
+        printf("    n_calls : %d\n", stats.total_n_calls);
+        printf("    time    : %f\n", stats.total_time);
     }
 }
 
