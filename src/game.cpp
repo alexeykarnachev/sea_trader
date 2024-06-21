@@ -203,7 +203,8 @@ void update_and_draw_debug() {
     if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
         auto start = player_transform.position;
         auto end = screen_to_world(GetMousePosition());
-        PATH = terrain::get_path(start, end);
+        // PATH = terrain::get_path(start, end);
+        PATH = profiler::profile_function("get_path", terrain::get_path, start, end);
     }
 
     Shader shader = resources::SPRITE_SHADER;

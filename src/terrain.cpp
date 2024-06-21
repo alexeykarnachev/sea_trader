@@ -22,16 +22,22 @@ static std::pair<int, int> DIRECTIONS[8] = {
     {-1, 0}, {-1, -1}, {0, -1}, {1, -1}, {1, 0}, {1, 1}, {0, 1}, {-1, 1}
 };
 
+// world parameters
 static constexpr int WORLD_SIZE = 200;
 static constexpr float RESOLUTION = 4.0;
 static constexpr float WATER_LEVEL = 0.6;
-static constexpr int PATH_STEP = 100;
 static constexpr int DATA_SIZE = WORLD_SIZE * RESOLUTION;
 
+// data pointers
 static float *HEIGHTS;
 static float *DISTS_TO_WATER;
 static float *DISTS_TO_GROUND;
 static Texture HEIGHTS_TEXTURE;
+
+// pathfinding parameters
+static constexpr int PATH_STEP = 3;
+static constexpr float DIST_TO_GROUND_COST_SCALE = 50.0;
+static constexpr float DIST_TO_GROUND_COST_RADIUS = 100.0;
 
 std::pair<int, int> data_idx_to_xy(int idx) {
     int x = idx % DATA_SIZE;
@@ -39,12 +45,18 @@ std::pair<int, int> data_idx_to_xy(int idx) {
     return std::make_pair(x, y);
 }
 
+int xy_to_data_idx(int x, int y) {
+    int idx = y * DATA_SIZE + x;
+    if (idx < 0 || idx >= DATA_SIZE * DATA_SIZE) return -1;
+    return idx;
+}
+
 int world_to_data_idx(Vector2 pos) {
     int x = pos.x * RESOLUTION;
     int y = pos.y * RESOLUTION;
     int idx = y * DATA_SIZE + x;
 
-    if (idx < 0 || idx > DATA_SIZE * DATA_SIZE) {
+    if (idx < 0 || idx >= (DATA_SIZE * DATA_SIZE)) {
         return -1;
     }
 
@@ -255,8 +267,9 @@ float get_h_cost(int idx1, int idx2) {
 
     // distance to ground cost
     float dist_to_ground_cost = -DISTS_TO_GROUND[idx1];
-    dist_to_ground_cost = -std::min(dist_to_ground_cost, 100.0f) / 100.0f;
-    dist_to_ground_cost *= 10.0;
+    dist_to_ground_cost = std::min(dist_to_ground_cost, DIST_TO_GROUND_COST_RADIUS)
+                          / DIST_TO_GROUND_COST_RADIUS;
+    dist_to_ground_cost *= DIST_TO_GROUND_COST_SCALE;
 
     // compound cost
     float h_cost = euclidian_cost + dist_to_ground_cost;
@@ -303,17 +316,15 @@ std::vector<Vector2> get_path(Vector2 start, Vector2 end) {
         for (auto &dir : DIRECTIONS) {
             int new_x = current_x + dir.first * step;
             int new_y = current_y + dir.second * step;
-            int new_idx = new_y * DATA_SIZE + new_x;
-            if (new_idx >= DATA_SIZE * DATA_SIZE) continue;
-            if (!check_if_water(HEIGHTS[new_idx])) continue;
+            int new_idx = xy_to_data_idx(new_x, new_y);
+            if (new_idx < 0 || !check_if_water(HEIGHTS[new_idx])) continue;
 
             float d_cost = (dir.first == 0 || dir.second == 0) ? step : step * SQRT2;
             float g_cost = current.g_cost + d_cost;
             float h_cost = get_h_cost(new_idx, end_idx);
             float f_cost = g_cost + h_cost;
 
-            Node new_node = nodes[new_idx];
-            if (new_node.idx == 0 || f_cost < new_node.f_cost) {
+            if (nodes[new_idx].idx == 0 || f_cost < nodes[new_idx].f_cost) {
                 nodes[new_idx] = {new_idx, current.idx, g_cost, f_cost};
                 queue.push(nodes[new_idx]);
             }
