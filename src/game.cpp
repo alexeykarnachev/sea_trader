@@ -7,6 +7,7 @@
 #include "dynamic_body.hpp"
 #include "entt/entity/fwd.hpp"
 #include "entt/entt.hpp"
+#include "profiler.hpp"
 #include "raylib/raylib.h"
 #include "raylib/raymath.h"
 #include "registry.hpp"
@@ -225,6 +226,7 @@ void draw() {
     draw_ships();
 
     shop::update_and_draw();
+    profiler::draw();
 
     update_and_draw_debug();
 

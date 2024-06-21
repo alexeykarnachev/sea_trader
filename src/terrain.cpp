@@ -1,5 +1,6 @@
 #include "terrain.hpp"
 
+#include "profiler.hpp"
 #include "raylib/raylib.h"
 #include "renderer.hpp"
 #include "resources.hpp"
@@ -170,6 +171,8 @@ struct Node {
 };
 
 std::vector<Vector2> get_path(Vector2 start, Vector2 end) {
+    profiler::push("get_path");
+
     int start_idx = world_to_data_idx(start);
     int end_idx = world_to_data_idx(end);
 
@@ -192,23 +195,25 @@ std::vector<Vector2> get_path(Vector2 start, Vector2 end) {
     };
     open_list.push(all_nodes[start_idx]);
 
+    std::vector<Vector2> path = {};
     while (!open_list.empty()) {
         Node current = open_list.top();
         open_list.pop();
         closed_list[current.idx] = true;
 
         if (current.idx == end_idx) {
-            std::vector<Vector2> path;
             while (current.idx != 0) {
                 path.push_back(data_idx_to_world(current.idx));
                 current = all_nodes[current.parent_idx];
             }
             std::reverse(path.begin(), path.end());
-            return path;
+            break;
         }
 
         int y = current.idx / DATA_SIZE;
         int x = current.idx % DATA_SIZE;
+
+        profiler::push("iterate_directions");
         for (auto &dir : DIRECTIONS) {
             int new_x = x + dir.first;
             int new_y = y + dir.second;
@@ -230,9 +235,11 @@ std::vector<Vector2> get_path(Vector2 start, Vector2 end) {
                 open_list.push(all_nodes[new_idx]);
             }
         }
+        profiler::pop();
     }
 
-    return {};
+    profiler::pop();
+    return path;
 }
 
 bool check_if_water(float h) {
