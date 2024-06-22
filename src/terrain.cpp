@@ -36,8 +36,6 @@ static Texture HEIGHTS_TEXTURE;
 
 // pathfinding parameters
 static constexpr int PATH_STEP = 3;
-static constexpr float DIST_TO_GROUND_COST_SCALE = 50.0;
-static constexpr float DIST_TO_GROUND_COST_RADIUS = 100.0;
 
 std::pair<int, int> data_idx_to_xy(int idx) {
     int x = idx % DATA_SIZE;
@@ -241,7 +239,7 @@ bool check_if_water(Vector2 pos) {
 }
 
 // -----------------------------------------------------------------------
-// a* path finding
+// astar path finding
 struct Node {
     int idx;
     int parent_idx;
@@ -259,17 +257,12 @@ float get_h_cost(int idx1, int idx2) {
     // euclidian cost
     auto [x1, y1] = data_idx_to_xy(idx1);
     auto [x2, y2] = data_idx_to_xy(idx2);
-
     int dx = x2 - x1;
     int dy = y2 - y1;
-
     float euclidian_cost = std::sqrt(dx * dx + dy * dy);
 
     // distance to ground cost
     float dist_to_ground_cost = -DISTS_TO_GROUND[idx1];
-    dist_to_ground_cost = std::min(dist_to_ground_cost, DIST_TO_GROUND_COST_RADIUS)
-                          / DIST_TO_GROUND_COST_RADIUS;
-    dist_to_ground_cost *= DIST_TO_GROUND_COST_SCALE;
 
     // compound cost
     float h_cost = euclidian_cost + dist_to_ground_cost;
