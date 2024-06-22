@@ -18,6 +18,8 @@ std::vector<Vector2> get_path(Vector2 start, Vector2 end);
 
 bool check_if_water(float h);
 bool check_if_water(Vector2 pos);
+bool check_if_ground(float h);
+bool check_if_ground(Vector2 pos);
 
 void draw();
 

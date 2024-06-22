@@ -44,9 +44,8 @@ std::pair<int, int> data_idx_to_xy(int idx) {
 }
 
 int xy_to_data_idx(int x, int y) {
-    int idx = y * DATA_SIZE + x;
-    if (idx < 0 || idx >= DATA_SIZE * DATA_SIZE) return -1;
-    return idx;
+    if (x < 0 || x >= DATA_SIZE || y < 0 || y >= DATA_SIZE) return -1;
+    return y * DATA_SIZE + x;
 }
 
 int world_to_data_idx(Vector2 pos) {
@@ -65,6 +64,40 @@ Vector2 data_idx_to_world(int idx) {
     auto [x, y] = data_idx_to_xy(idx);
     Vector2 pos = {x / RESOLUTION, y / RESOLUTION};
     return pos;
+}
+
+float *get_distances(bool (*fn)(float)) {
+    float *data = (float *)malloc(DATA_SIZE * DATA_SIZE * sizeof(float));
+    std::fill(data, data + DATA_SIZE * DATA_SIZE, -1.0);
+
+    std::queue<int> queue;
+    for (int i = 0; i < DATA_SIZE * DATA_SIZE; ++i) {
+        if (fn(HEIGHTS[i])) {
+            data[i] = 0.0;
+            queue.push(i);
+        }
+    }
+
+    while (!queue.empty()) {
+        auto i0 = queue.front();
+        auto [x0, y0] = data_idx_to_xy(i0);
+        queue.pop();
+
+        for (auto [dx, dy] : DIRECTIONS) {
+            int i1 = xy_to_data_idx(x0 + dx, y0 + dy);
+            if (i1 < 0 || data[i1] >= 0.0) continue;
+
+            float d1 = 0.0;
+            if (!fn(HEIGHTS[i1])) {
+                float dd = dx == 0 || dy == 0 ? 1.0 : SQRT2;
+                d1 = data[i0] + dd;
+            }
+            data[i1] = d1;
+            queue.push(i1);
+        }
+    }
+
+    return data;
 }
 
 void load() {
@@ -102,91 +135,6 @@ void load() {
     }
 
     // -------------------------------------------------------------------
-    // init dists_to_water
-    {
-        DISTS_TO_WATER = (float *)malloc(DATA_SIZE * DATA_SIZE * sizeof(float));
-        std::fill(DISTS_TO_WATER, DISTS_TO_WATER + DATA_SIZE * DATA_SIZE, -1.0);
-
-        std::queue<std::pair<int, float>> queue;
-        for (int i = 0; i < DATA_SIZE * DATA_SIZE; ++i) {
-            float height = HEIGHTS[i];
-            if (check_if_water(height)) {
-                DISTS_TO_WATER[i] = 0.0;
-                queue.push({i, 0.0});
-            }
-        }
-
-        while (!queue.empty()) {
-            auto [i0, d0] = queue.front();
-            auto [x0, y0] = data_idx_to_xy(i0);
-
-            queue.pop();
-
-            for (auto [dx, dy] : DIRECTIONS) {
-                int x1 = x0 + dx;
-                int y1 = y0 + dy;
-                int i1 = y1 * DATA_SIZE + x1;
-
-                if (x1 >= 0 && x1 < DATA_SIZE && y1 >= 0 && y1 < DATA_SIZE) {
-                    if (DISTS_TO_WATER[i1] >= 0.0) continue;
-
-                    float height = HEIGHTS[i1];
-                    float d1 = 0.0;
-                    if (!check_if_water(height)) {
-                        float dd = dx == 0 || dy == 0 ? 1.0 : SQRT2;
-                        d1 = d0 + dd;
-                    }
-                    DISTS_TO_WATER[i1] = d1;
-                    queue.push({i1, d1});
-                }
-            }
-        }
-    }
-
-    // -------------------------------------------------------------------
-    // init dists_to_ground
-    // TODO: factor out bfs procedure
-    {
-        DISTS_TO_GROUND = (float *)malloc(DATA_SIZE * DATA_SIZE * sizeof(float));
-        std::fill(DISTS_TO_GROUND, DISTS_TO_GROUND + DATA_SIZE * DATA_SIZE, -1.0);
-
-        std::queue<std::pair<int, float>> queue;
-        for (int i = 0; i < DATA_SIZE * DATA_SIZE; ++i) {
-            float height = HEIGHTS[i];
-            if (!check_if_water(height)) {
-                DISTS_TO_GROUND[i] = 0.0;
-                queue.push({i, 0.0});
-            }
-        }
-
-        while (!queue.empty()) {
-            auto [i0, d0] = queue.front();
-            auto [x0, y0] = data_idx_to_xy(i0);
-
-            queue.pop();
-
-            for (auto [dx, dy] : DIRECTIONS) {
-                int x1 = x0 + dx;
-                int y1 = y0 + dy;
-                int i1 = y1 * DATA_SIZE + x1;
-
-                if (x1 >= 0 && x1 < DATA_SIZE && y1 >= 0 && y1 < DATA_SIZE) {
-                    if (DISTS_TO_GROUND[i1] >= 0.0) continue;
-
-                    float height = HEIGHTS[i1];
-                    float d1 = 0.0;
-                    if (check_if_water(height)) {
-                        float dd = dx == 0 || dy == 0 ? 1.0 : SQRT2;
-                        d1 = d0 + dd;
-                    }
-                    DISTS_TO_GROUND[i1] = d1;
-                    queue.push({i1, d1});
-                }
-            }
-        }
-    }
-
-    // -------------------------------------------------------------------
     // init heights_texture
     Image image;
     image.data = HEIGHTS;
@@ -195,6 +143,11 @@ void load() {
     image.mipmaps = 1;
     image.format = PIXELFORMAT_UNCOMPRESSED_R32;
     HEIGHTS_TEXTURE = LoadTextureFromImage(image);
+
+    // -------------------------------------------------------------------
+    // init distances
+    DISTS_TO_WATER = get_distances(check_if_water);
+    DISTS_TO_GROUND = get_distances(check_if_ground);
 }
 
 void unload() {
@@ -236,6 +189,14 @@ bool check_if_water(float h) {
 
 bool check_if_water(Vector2 pos) {
     return check_if_water(get_height(pos));
+}
+
+bool check_if_ground(float h) {
+    return h > WATER_LEVEL;
+}
+
+bool check_if_ground(Vector2 pos) {
+    return check_if_ground(get_height(pos));
 }
 
 // -----------------------------------------------------------------------
