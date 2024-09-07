@@ -2,6 +2,7 @@
 
 #include "cargo.hpp"
 #include "raylib/raylib.h"
+#include <vector>
 
 namespace st {
 namespace components {
@@ -14,6 +15,13 @@ public:
     Transform(Vector2 position, float rotation);
 
     Vector2 get_forward();
+};
+
+class Path {
+public:
+    std::vector<Vector2> points;
+
+    Path(std::vector<Vector2> points);
 };
 
 class Port {

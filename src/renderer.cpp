@@ -16,6 +16,8 @@ void load() {
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Sea Trader");
     SetExitKey(KEY_NULL);
     SetTargetFPS(60);
+
+    rlSetLineWidth(2.0);
 }
 
 void unload() {

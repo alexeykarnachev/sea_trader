@@ -231,7 +231,7 @@ float get_h_cost(int idx1, int idx2) {
     return h_cost;
 }
 
-std::vector<Vector2> get_path(Vector2 start, Vector2 end) {
+std::vector<Vector2> get_path_points(Vector2 start, Vector2 end) {
     static std::array<Node, DATA_SIZE * DATA_SIZE> nodes;
     std::memset(nodes.data(), 0, sizeof(nodes));
 
